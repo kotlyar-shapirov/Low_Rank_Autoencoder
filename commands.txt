@@ -1,7 +1,1 @@
 nohup python3 script.py  > out.out 2>&1 &
-
-
-PIDs:
-2257651
-2257336
-2257370
