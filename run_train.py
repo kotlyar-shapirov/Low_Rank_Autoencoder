@@ -246,6 +246,12 @@ loss = 0
 
 alpha_kl = ALPHA
 alpha_entropy = ALPHA
+if MODEL_TYPE == 'LRAE':
+    alpha_entropy *= OUT_FEATURES/8
+    print(f"Alpha update = {OUT_FEATURES/8: .3f}")
+    print(f"Entropy alpha = {alpha_entropy: .3e}")
+
+
 epoch_save_backup = EPOCH_SAVE_BACKUP
 show_loss_backup = SHOW_LOSS_BACKUP
 
@@ -290,6 +296,9 @@ for epoch in tqdm(range(EPOCHS)):
             factors_probability = nn.Softmax(dim=-1)(factors_probability)
             loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)            
             loss += alpha_entropy*torch.mean(torch.exp(loss_entropy)) # entropy loss
+            
+            
+          
             
             
         # Zero gradients, perform a backward pass, and update the weights.
