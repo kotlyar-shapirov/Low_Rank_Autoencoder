@@ -46,22 +46,24 @@ IN_FEATURES = 256*2*2
 OUT_FEATURES = 128
 N_BINS = 20
 
+EPOCHS = 150
+
 
 DROPOUT = 0.0
 TEMP = 0.5
 SAMPLING = 'gumbell'
 
 
-TRAIN_SIZE = 60000
-TEST_SIZE = 10000
+TRAIN_SIZE = -1
+TEST_SIZE = -1
 BATCH_SIZE = 32
 
-DATASET_TYPE = 'MNIST'
+# DATASET_TYPE = 'MNIST'
+DATASET_TYPE = 'CIFAR10'
 
 ALPHA = 1e-2
-EPOCH_SAVE_BACKUP = 5
-SHOW_LOSS_BACKUP = 5
-EPOCHS = 50
+EPOCH_SAVE_BACKUP = 10
+SHOW_LOSS_BACKUP = 10
 LEARNING_RATE = 1e-4
 
 NONLINEARITY = nn.ReLU()
@@ -119,13 +121,103 @@ print()
 
 
 # Service parameters
-GOOD_DATASET_TYPE = ['MNIST']
+GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10']
 GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE']
 
 # Checking parameters
 assert MODEL_TYPE in GOOD_MODEL_TYPE, f"Error, bad model type, select from: {GOOD_MODEL_TYPE}"
 assert DATASET_TYPE in GOOD_DATASET_TYPE, f"Error, bad dataset type, select from: {GOOD_DATASET_TYPE}"
 #############
+
+
+
+
+####### Dataset
+dataset_type = DATASET_TYPE
+print('\n\n')
+print(f'Loading dataset: {dataset_type}')
+
+        
+# Torchvision dataset
+
+
+if DATASET_TYPE in ['MNIST']:
+    train_ds = torchvision.datasets.MNIST('./files/', train=True, download=True,
+                                transform=torchvision.transforms.Compose([
+                                    transforms.Resize(32),
+                                    torchvision.transforms.ToTensor(),
+                                ]))
+    test_ds = torchvision.datasets.MNIST('./files/', train=False, download=True,
+                                transform=torchvision.transforms.Compose([
+                                    transforms.Resize(32),
+                                    torchvision.transforms.ToTensor(),
+                                ]))
+    ds_train_size, df_test_size = 60000, 10000
+    # ds_in_channels = 1
+    
+    
+elif DATASET_TYPE in ['CIFAR10']:
+    train_ds = torchvision.datasets.CIFAR10('./files/', train=True, download=True,
+                                transform=torchvision.transforms.Compose([
+                                    transforms.Resize(32),
+                                    torchvision.transforms.ToTensor(),
+                                ]))
+    test_ds = torchvision.datasets.CIFAR10('./files/', train=False, download=True,
+                                transform=torchvision.transforms.Compose([
+                                    transforms.Resize(32),
+                                    torchvision.transforms.ToTensor(),
+                                ]))
+    ds_train_size, df_test_size = 50000, 10000
+    # ds_in_channels = 3
+    
+else:
+    assert False, f"Error, bad dataset type, select from: {GOOD_DATASET_TYPE}"
+
+
+num_workers = NUM_WORKERS
+
+# dataset and dataloader
+TRAIN_SIZE = ds_train_size if TRAIN_SIZE == -1 else TRAIN_SIZE
+TEST_SIZE = df_test_size if TEST_SIZE == -1 else TEST_SIZE
+# print(f"TRAIN_SIZE: {TRAIN_SIZE}({ds_train_size})")
+# print(f"TEST_SIZE: {TEST_SIZE}({df_test_size})")
+
+
+BATCH_SIZE = BATCH_SIZE
+dl = DataLoader(train_ds, batch_size=BATCH_SIZE,     num_workers=num_workers)
+dl_test = DataLoader(test_ds, batch_size=BATCH_SIZE, num_workers=num_workers)
+
+#full dataset train
+FULL_TRAIN_SIZE = 2
+dl_full = DataLoader(train_ds, batch_size=FULL_TRAIN_SIZE)
+for x, y in dl_full:
+    X_full_train = x
+    targets = y
+    break
+
+# #full dataset train
+# FULL_TEST_SIZE = TEST_SIZE
+# dl_full = DataLoader(test_ds, batch_size=FULL_TEST_SIZE)
+# for x, y in dl_full:
+#     X_full_test = x
+#     targets_test = y
+#     break
+
+print("Dataset parameters:")
+print(f"TRAIN_SIZE: {TRAIN_SIZE}({ds_train_size})")
+print(f"TEST_SIZE: {TEST_SIZE}({df_test_size})")
+for param, param_name in zip([TRAIN_SIZE, TEST_SIZE, BATCH_SIZE], ["BATCH_SIZE"] ):
+    print(f"{param_name} = {param}")
+
+print(f"{DATASET_TYPE} dataset logs:")
+print(X_full_train.shape)
+print(torch.max(X_full_train))
+print(targets.unique(return_counts=True))
+
+print('\n\n')
+
+ds_in_channels = X_full_train.shape[1]
+###################
 
 
 
@@ -141,11 +233,11 @@ print("model_name: ", model_name, '\n\n' )
 if MODEL_TYPE == 'LRAE':
     GRID = torch.arange(1,N_BINS+1).to(device)/N_BINS
     model = ConvLRAE(IN_FEATURES, OUT_FEATURES, N_BINS, GRID, dropout=DROPOUT, nonlinearity=NONLINEARITY,
-                sampling=SAMPLING, temperature=TEMP,).to(device)
+                sampling=SAMPLING, temperature=TEMP, in_channels=ds_in_channels).to(device)
 elif MODEL_TYPE == 'VAE':
-    model = ConvVAE(IN_FEATURES, OUT_FEATURES, nonlinearity=NONLINEARITY).to(device)
+    model = ConvVAE(IN_FEATURES, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
 elif MODEL_TYPE == 'AE':
-    model = ConvAE(IN_FEATURES, OUT_FEATURES, nonlinearity=NONLINEARITY).to(device)
+    model = ConvAE(IN_FEATURES, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
 else:
     assert False, f"Error, bad model type, select from: {GOOD_MODEL_TYPE}"
       
@@ -153,72 +245,6 @@ print(f"{MODEL_TYPE} was initialized")
 PATH = os.path.join(SAVE_DIR, model_name)
 print('Save PATH:', PATH)
 #################################
-
-
-
-
-
-
-####### Dataset
-dataset_type = DATASET_TYPE
-print('\n\n')
-print(f'Loading dataset: {dataset_type}')
-
-        
-# Torchvision dataset
-
-
-train_ds_mnist = torchvision.datasets.MNIST('./files/', train=True, download=True,
-                             transform=torchvision.transforms.Compose([
-                                 transforms.Resize(32),
-                                 torchvision.transforms.ToTensor(),
-                             ]))
-test_ds_mnist = torchvision.datasets.MNIST('./files/', train=False, download=True,
-                             transform=torchvision.transforms.Compose([
-                                 transforms.Resize(32),
-                                 torchvision.transforms.ToTensor(),
-                             ]))
-
-
-num_workers = NUM_WORKERS
-
-
-# dataset and dataloader
-TRAIN_SIZE = TRAIN_SIZE
-TEST_SIZE = TEST_SIZE
-BATCH_SIZE = BATCH_SIZE
-dl = DataLoader(train_ds_mnist, batch_size=BATCH_SIZE,     num_workers=num_workers)
-dl_test = DataLoader(test_ds_mnist, batch_size=BATCH_SIZE, num_workers=num_workers)
-
-#full dataset train
-FULL_TRAIN_SIZE = TRAIN_SIZE
-dl_full = DataLoader(train_ds_mnist, batch_size=FULL_TRAIN_SIZE)
-for x, y in dl_full:
-    X_full_train = x
-    targets = y
-    break
-
-#full dataset train
-FULL_TEST_SIZE = TEST_SIZE
-dl_full = DataLoader(test_ds_mnist, batch_size=FULL_TEST_SIZE)
-for x, y in dl_full:
-    X_full_test = x
-    targets_test = y
-    break
-
-print("Dataset parameters:")
-for param, param_name in zip([TRAIN_SIZE, TEST_SIZE, BATCH_SIZE], ["TRAIN_SIZE", "TEST_SIZE", "BATCH_SIZE"] ):
-    print(f"{param_name} = {param}")
-
-print("dataset logs:")
-print(X_full_train.shape)
-print(torch.max(X_full_train))
-print(targets.unique(return_counts=True))
-
-print('\n\n')
-###################
-
-
 
 
 
@@ -343,7 +369,7 @@ for epoch in tqdm(range(EPOCHS)):
             }, PATH + f"__{epoch}.pth")
       
     # loss printing        
-    if (epoch % show_loss_backup == show_loss_backup-1) or (epoch == EPOCHS -1):
+    if (epoch % show_loss_backup == (show_loss_backup-1)) or (epoch == EPOCHS -1):
         fig = plt.figure(figsize=(6,3))
         plt.plot(loss_list_train, alpha=0.5, label='train')
         plt.plot(loss_list_test, alpha=0.5, label='test')
