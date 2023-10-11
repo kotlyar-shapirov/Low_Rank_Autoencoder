@@ -11,7 +11,7 @@ from .conv_up_and_down import UpsampleBlock, DownsampleBlock
 class ConvLRAE(nn.Module):
     def __init__(self, in_features,out_features, n_bins, grid,
                  dropout, nonlinearity,
-                 sampling='gumbell', temperature=0.5, start_dropout=0,
+                 sampling='gumbell', temperature=0.5, in_channels=1, start_dropout=0,
                 ):
         super().__init__()
         
@@ -27,7 +27,7 @@ class ConvLRAE(nn.Module):
 
         
         self.down = nn.Sequential(nn.Dropout(start_dropout),
-                                  DownsampleBlock(in_features=1, out_features=32, nonlinearity=nonlinearity),
+                                  DownsampleBlock(in_features=in_channels, out_features=32, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=32, out_features=64, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=64, out_features=128, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=128, out_features=256, nonlinearity=nonlinearity),
@@ -42,7 +42,7 @@ class ConvLRAE(nn.Module):
                                 UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=128, out_features=64, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=64, out_features=32, nonlinearity=nonlinearity),
-                                UpsampleBlock(in_features=32, out_features=1,  nonlinearity=nn.Sigmoid()),
+                                UpsampleBlock(in_features=32, out_features=in_channels,  nonlinearity=nn.Sigmoid()),
                                 )
         
     def forward(self, x):
@@ -64,7 +64,7 @@ class ConvLRAE(nn.Module):
     
 ## VARIATIONAL AUTOENCODER (VAE)
 class ConvVAE(nn.Module):
-    def __init__(self, in_features, out_features, nonlinearity, start_dropout=0 ):
+    def __init__(self, in_features, out_features, nonlinearity, in_channels=1, start_dropout=0 ):
         super().__init__()
         
         self.in_features = in_features   # input features after convolutions and flattening
@@ -75,7 +75,7 @@ class ConvVAE(nn.Module):
         
         
         self.down = nn.Sequential(nn.Dropout(start_dropout),
-                                  DownsampleBlock(in_features=1, out_features=32, nonlinearity=nonlinearity),
+                                  DownsampleBlock(in_features=in_channels, out_features=32, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=32, out_features=64, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=64, out_features=128, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=128, out_features=256, nonlinearity=nonlinearity),
@@ -88,7 +88,7 @@ class ConvVAE(nn.Module):
                                 UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=128, out_features=64, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=64, out_features=32, nonlinearity=nonlinearity),
-                                UpsampleBlock(in_features=32, out_features=1,  nonlinearity=nn.Sigmoid()),
+                                UpsampleBlock(in_features=32, out_features=in_channels,  nonlinearity=nn.Sigmoid()),
                                 )
         
     def forward(self, x):
@@ -109,7 +109,7 @@ class ConvVAE(nn.Module):
     
 ## VARIATIONAL AUTOENCODER (VAE)
 class ConvAE(nn.Module):
-    def __init__(self, in_features, out_features, nonlinearity, start_dropout=0):
+    def __init__(self, in_features, out_features, nonlinearity, in_channels=1, start_dropout=0):
         super().__init__()
         
         self.in_features = in_features   # input features after convolutions and flattening
@@ -120,7 +120,7 @@ class ConvAE(nn.Module):
         
         
         self.down = nn.Sequential(nn.Dropout(start_dropout),
-                                  DownsampleBlock(in_features=1, out_features=32, nonlinearity=nonlinearity),
+                                  DownsampleBlock(in_features=in_channels, out_features=32, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=32, out_features=64, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=64, out_features=128, nonlinearity=nonlinearity),
                                   DownsampleBlock(in_features=128, out_features=256, nonlinearity=nonlinearity),
@@ -133,7 +133,7 @@ class ConvAE(nn.Module):
                                 UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=128, out_features=64, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=64, out_features=32, nonlinearity=nonlinearity),
-                                UpsampleBlock(in_features=32, out_features=1,  nonlinearity=nn.Tanh()),
+                                UpsampleBlock(in_features=32, out_features=in_channels,  nonlinearity=nn.Tanh()),
                                 )
         
     def forward(self, x):
