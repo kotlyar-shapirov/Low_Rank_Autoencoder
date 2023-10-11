@@ -27,11 +27,12 @@ class LowRankPants(nn.Module):
         assert sampling in {'vector', 'gumbell'}, 'Select: vector, gumbell'
         
         # mapping to final probabilities (штаны)
-        self.layers = nn.ModuleList([nn.Sequential(
-                                                   nn.Linear(in_features, n_bins),
-                                                  )
-                                                   for i in range(out_features)]
-                                   )
+        # self.layers = nn.ModuleList([nn.Sequential(
+        #                                            nn.Linear(in_features, n_bins),
+        #                                           )
+        #                                            for i in range(out_features)]
+        #                            )
+        self.layers = nn.Linear(in_features, n_bins*out_features)
 
         # dropout for randromized vector sampling
         self.dropout = nn.Dropout(dropout)
@@ -41,11 +42,12 @@ class LowRankPants(nn.Module):
         B = x.shape[0]
 
         # getting additional linear layer
-        factors_list = []
-        for layer in self.layers:
-            factors_list.append(layer(x)) # (B, n_bins)
-        # stack  them up
-        factors = torch.stack(factors_list, dim=-1)
+        # factors_list = []
+        # for layer in self.layers:
+        #     factors_list.append(layer(x)) # (B, n_bins)
+        # # stack  them up
+        # factors = torch.stack(factors_list, dim=-1)
+        factors = self.layers(x)
         factors_logits = factors.view(B, self.out_features, self.n_bins) # size = (B, out_features, n_bins)
 
         # choosing the sampling
