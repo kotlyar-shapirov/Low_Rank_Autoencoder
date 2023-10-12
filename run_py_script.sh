@@ -4,6 +4,4 @@ nohup python3 run_train.py -m VAE -d cuda:0  > $test_dir_name/out_VAE.out 2>&1 &
 # nohup python3 run_train.py -m LRAE -d cuda:1  > test_1_save/out_LRAE.out 2>&1 &
 
 
-# 3622731
-# 4182447
-# 4190284
+# 3688582
