@@ -1,9 +1,13 @@
+# directories
 files/
 test_*/
 recorded models/
-*.code-workspace
 models/__pycache__/
 saved_models/
 saved_models_old/
 recorded models/
-recorded models/
+evaluation/
+
+# file types
+*.code-workspace
+*.out
