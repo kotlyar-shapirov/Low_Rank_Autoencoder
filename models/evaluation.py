@@ -28,6 +28,30 @@ def inf_by_layers(model, x_batch):
     return decoded_2d, encoded_out_dim, factors_probability
 
 
+def get_inf_by_layers(model, X_full, batch_size, device):
+    model.eval()    
+    idx_list = gen_idx_for_batches(batch_size=batch_size, total_size=X_full.shape[0])
+    decoded_2d_list, encoded_out_dim_list, factors_probability_list = [], [], []
+    with torch.no_grad():
+        for ii in tqdm(range(len(idx_list) -1)):
+            X_eval = X_full[idx_list[ii]:idx_list[ii+1]]
+            decoded_2d_, encoded_out_dim_, factors_probability_ = inf_by_layers(model, X_eval.to(device))
+            decoded_2d_list += [decoded_2d_.detach().cpu()]
+            encoded_out_dim_list += [encoded_out_dim_.detach().cpu()]
+            
+            if factors_probability_ is None:
+                factors_probability_list += []
+            else:
+                factors_probability_list += [factors_probability_.detach().cpu()]
+                
+        decoded_2d, encoded_out_dim = torch.cat(decoded_2d_list, dim=0), torch.cat(encoded_out_dim_list, dim=0)
+        if len(factors_probability_list) > 0:
+            factors_probability = torch.cat(factors_probability_list, dim=0)
+        else:
+            factors_probability = None
+    return decoded_2d, encoded_out_dim, factors_probability
+
+
 
 def check_reconstruction(model, X_test):
     device = X_test.device
@@ -131,10 +155,10 @@ def display_datasets(dataset_list, dataset_names=[], W_n=5, H_n = 5):
                     
     
                 
-def gen_gm_dataset(model, encoded, n_components=1, total_size=50000, batch_size=1024, C_H_W = [256, 2, 2], max_iter=500):
+def gen_gm_dataset(model, encoded, device, n_components=1, total_size=50000, batch_size=1024, C_H_W = [256, 2, 2], max_iter=500):
     C, H, W = C_H_W
     global gen_idx_for_batches
-    device = encoded.device
+    # device = encoded.device
 
     gm = GaussianMixture(n_components=n_components, max_iter=max_iter)
     gm.fit(encoded.detach().cpu().numpy())
