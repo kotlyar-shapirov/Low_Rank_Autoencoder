@@ -7,7 +7,7 @@ import os
 from tqdm import tqdm
 
 # Upload model
-from models.R1AE import ConvLRAE, ConvVAE, ConvAE
+# from models.R1AE import ConvLRAE, ConvVAE, ConvAE
 
 
 import torchvision
@@ -37,18 +37,70 @@ MODEL_TYPE = args.model
 # MODEL_TYPE = 'LRAE'
 
 
-MODEL_NAME_PREF = 'test1__'
-SAVE_DIR = 'test_1_save'
+# DATASET_TYPE = 'MNIST'
+# DATASET_TYPE = 'CIFAR10'
+DATASET_TYPE = 'CelebA'
+
+# Upload model
+if DATASET_TYPE in ['MNIST']:
+    from models.R1AE import ConvLRAE, ConvVAE, ConvAE
+    print("models were downloaded from 'models.R1AE'")
+    IN_FEATURES = 256*2*2
+    OUT_FEATURES = 128
+    MODEL_NAME_PREF = 'test1__'
+    SAVE_DIR = 'test_1_save'
+elif DATASET_TYPE in ['CIFAR10']:
+    from models.R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
+    print("models were downloaded from 'models.R1AE_CelebA'")
+    IN_FEATURES = 1024*2*2
+    OUT_FEATURES = 512
+    # MODEL_NAME_PREF = 'test2__'
+    # SAVE_DIR = 'test_2_save'
+    MODEL_NAME_PREF = 'test3__'
+    SAVE_DIR = 'test_3_save'
+    
+elif DATASET_TYPE in ['CelebA', 'CELEBA']:
+    from models.R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
+    print("models were downloaded from 'models.R1AE_CelebA'")
+    IN_FEATURES = 1024*4*4
+    OUT_FEATURES = 512
+    # MODEL_NAME_PREF = 'test2__'
+    # SAVE_DIR = 'test_2_save'
+    MODEL_NAME_PREF = 'test3__'
+    SAVE_DIR = 'test_3_save'
+else:
+   print("Warning! the default models will be uploaded!")
+   from models.R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
+   print("models were downloaded from 'models.R1AE_CelebA'") 
+   
+    
+    
+    
+
+
+
+# MODEL_NAME_PREF = 'test2__'
+# SAVE_DIR = 'test_1_save'
 # SAVE_DIR = ''
 
+# IN_FEATURES = 256*2*2
+# OUT_FEATURES = 128
+    
+# IN_FEATURES = 1024*4*4
+# OUT_FEATURES = 512
 
-IN_FEATURES = 256*2*2
-OUT_FEATURES = 128
+
+
+#
+# BATCH_SIZE = 64
+BATCH_SIZE = 128
+# BATCH_SIZE = 32
 N_BINS = 20
+EPOCHS = 200
+# EPOCHS = 100
 
-EPOCHS = 150
 
-
+# LRAE parameters
 DROPOUT = 0.0
 TEMP = 0.5
 SAMPLING = 'gumbell'
@@ -56,14 +108,16 @@ SAMPLING = 'gumbell'
 
 TRAIN_SIZE = -1
 TEST_SIZE = -1
-BATCH_SIZE = 32
 
-# DATASET_TYPE = 'MNIST'
-DATASET_TYPE = 'CIFAR10'
 
-ALPHA = 1e-2
-EPOCH_SAVE_BACKUP = 10
-SHOW_LOSS_BACKUP = 10
+
+ALPHA = 1e-3
+# ALPHA = 1e-2
+# EPOCH_SAVE = 25 # save and remain
+EPOCH_SAVE = 50 # save and remain
+
+EPOCH_SAVE_BACKUP = 5 # save and rewrite 
+SHOW_LOSS_BACKUP = 5 # save and rewrite 
 LEARNING_RATE = 1e-4
 
 NONLINEARITY = nn.ReLU()
@@ -83,10 +137,12 @@ def print_params(param_list, param_names_list):
 # Show input data
 print('Input script data', '\n')
 print('Main parameters:')
-in_param_list = [SAVE_DIR, DEVICE, MODEL_TYPE, OUT_FEATURES, DATASET_TYPE]
-in_param__names_list = ['SAVE_DIR', 'DEVICE', 'MODEL_TYPE', 'OUT_FEATURES', 'DATASET_TYPE']
+in_param_list = [SAVE_DIR, DEVICE, MODEL_TYPE, DATASET_TYPE, OUT_FEATURES, EPOCHS]
+in_param__names_list = ['SAVE_DIR', 'DEVICE', 'MODEL_TYPE', 'DATASET_TYPE', 'OUT_FEATURES', 'EPOCHS']
 print_params(in_param_list, in_param__names_list)
 print()
+print()
+
 
 print('All model parameters:')
 in_param_list = [OUT_FEATURES, NONLINEARITY, IN_FEATURES,  N_BINS, DROPOUT, TEMP, SAMPLING]
@@ -112,8 +168,8 @@ NUM_WORKERS = 10
 
 # Other parameters
 print('Other parameters')
-other_param_list = [NUM_WORKERS, EPOCH_SAVE_BACKUP, SHOW_LOSS_BACKUP]
-other_param_names_list = ['NUM_WORKERS', 'EPOCH_SAVE_BACKUP', 'SHOW_LOSS_BACKUP']
+other_param_list = [NUM_WORKERS, EPOCH_SAVE, EPOCH_SAVE_BACKUP, SHOW_LOSS_BACKUP]
+other_param_names_list = ['NUM_WORKERS', 'EPOCH_SAVE', 'EPOCH_SAVE_BACKUP', 'SHOW_LOSS_BACKUP']
 for param_name, param in zip(other_param_names_list, other_param_list):
     print(f"{param_name}: {param}")
 print()
@@ -121,7 +177,7 @@ print()
 
 
 # Service parameters
-GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10']
+GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10', 'CelebA', 'CELEBA']
 GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE']
 
 # Checking parameters
@@ -153,7 +209,7 @@ if DATASET_TYPE in ['MNIST']:
                                     torchvision.transforms.ToTensor(),
                                 ]))
     ds_train_size, df_test_size = 60000, 10000
-    # ds_in_channels = 1
+    ds_in_channels = 1
     
     
 elif DATASET_TYPE in ['CIFAR10']:
@@ -168,7 +224,21 @@ elif DATASET_TYPE in ['CIFAR10']:
                                     torchvision.transforms.ToTensor(),
                                 ]))
     ds_train_size, df_test_size = 50000, 10000
-    # ds_in_channels = 3
+    ds_in_channels = 3
+    
+elif DATASET_TYPE in ['CelebA', 'CELEBA']:
+    train_ds = torchvision.datasets.CelebA('./files/', split='train', target_type ='attr', download=True,
+                                transform=torchvision.transforms.Compose([
+                                    transforms.Resize([64, 64]),
+                                    torchvision.transforms.ToTensor(),
+                                ]))
+    test_ds = torchvision.datasets.CelebA('./files/', split='valid', target_type ='attr', download=True,
+                                transform=torchvision.transforms.Compose([
+                                    transforms.Resize([64, 64]),
+                                    torchvision.transforms.ToTensor(),
+                                ]))
+    ds_train_size, df_test_size = 162770, 19962  # used validation for test; True test_size = 19867
+    ds_in_channels = 3
     
 else:
     assert False, f"Error, bad dataset type, select from: {GOOD_DATASET_TYPE}"
@@ -187,13 +257,13 @@ BATCH_SIZE = BATCH_SIZE
 dl = DataLoader(train_ds, batch_size=BATCH_SIZE,     num_workers=num_workers)
 dl_test = DataLoader(test_ds, batch_size=BATCH_SIZE, num_workers=num_workers)
 
-#full dataset train
-FULL_TRAIN_SIZE = 2
-dl_full = DataLoader(train_ds, batch_size=FULL_TRAIN_SIZE)
-for x, y in dl_full:
-    X_full_train = x
-    targets = y
-    break
+# #full dataset train
+# FULL_TRAIN_SIZE = 2
+# dl_full = DataLoader(train_ds, batch_size=FULL_TRAIN_SIZE)
+# for x, y in dl_full:
+#     X_full_train = x
+#     targets = y
+#     break
 
 # #full dataset train
 # FULL_TEST_SIZE = TEST_SIZE
@@ -210,13 +280,14 @@ for param, param_name in zip([TRAIN_SIZE, TEST_SIZE, BATCH_SIZE], ["BATCH_SIZE"]
     print(f"{param_name} = {param}")
 
 print(f"{DATASET_TYPE} dataset logs:")
-print(X_full_train.shape)
-print(torch.max(X_full_train))
-print(targets.unique(return_counts=True))
+print("Img channel:", ds_in_channels)
+# print(X_full_train.shape)
+# print(torch.max(X_full_train))
+# print(targets.unique(return_counts=True))
 
 print('\n\n')
 
-ds_in_channels = X_full_train.shape[1]
+# ds_in_channels = X_full_train.shape[1]
 ###################
 
 
@@ -273,12 +344,13 @@ loss = 0
 alpha_kl = ALPHA
 alpha_entropy = ALPHA
 if MODEL_TYPE == 'LRAE':
-    alpha_entropy *= OUT_FEATURES/8
-    print(f"Alpha update = {OUT_FEATURES/8: .3f}")
+    alpha_entropy *= (OUT_FEATURES/8)**0.5
+    print(f"Alpha update = {(OUT_FEATURES/8)**0.5: .3f}")
     print(f"Entropy alpha = {alpha_entropy: .3e}")
 
 
 epoch_save_backup = EPOCH_SAVE_BACKUP
+epoch_save = EPOCH_SAVE
 show_loss_backup = SHOW_LOSS_BACKUP
 
 
@@ -355,9 +427,9 @@ for epoch in tqdm(range(EPOCHS)):
             loss_list_test.append(loss_test_cum/len(dl_test))
             loss_test_cum = 0
           
-            
     # backup saving  
-    if epoch%epoch_save_backup == 0:
+    if epoch%epoch_save == 0:
+        
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -367,6 +439,21 @@ for epoch in tqdm(range(EPOCHS)):
             'loss_list_test': loss_list_test,
             
             }, PATH + f"__{epoch}.pth")
+        epoch_previous = epoch
+            
+    # backup saving  
+    if epoch%epoch_save_backup == 0:
+        
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss,
+            'loss_list_train': loss_list_train,
+            'loss_list_test': loss_list_test,
+            
+            }, PATH + f"__backup.pth")
+        epoch_previous = epoch
       
     # loss printing        
     if (epoch % show_loss_backup == (show_loss_backup-1)) or (epoch == EPOCHS -1):

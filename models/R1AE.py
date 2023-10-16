@@ -107,7 +107,7 @@ class ConvVAE(nn.Module):
         return x_out
     
     
-## VARIATIONAL AUTOENCODER (VAE)
+## VANILA AUTOENCODER (AE)
 class ConvAE(nn.Module):
     def __init__(self, in_features, out_features, nonlinearity, in_channels=1, start_dropout=0):
         super().__init__()
