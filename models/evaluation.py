@@ -12,7 +12,7 @@ from sklearn.mixture import GaussianMixture
 
 
 
-def inf_by_layers(model, x_batch):
+def inf_by_layers(model, x_batch, C_H_W=None):
     # forward pass with intermediate layers
     x_down = model.down(x_batch)
     B, C, H, W = x_down.shape
@@ -22,20 +22,50 @@ def inf_by_layers(model, x_batch):
     # decoded_inter_dim =                    model.low_rank.intermediate_decoder(encoded_out_dim)
     decoded_inter_dim = encoded_out_dim
     decoded_1d =                           model.low_rank.decoder(decoded_inter_dim)
+    
+    C, H, W = C_H_W if C_H_W is not None else (C, H, W)
+    
     decoded_2d_small = decoded_1d.view(B, C, H, W)
     decoded_2d = model.up(decoded_2d_small)
 
     return decoded_2d, encoded_out_dim, factors_probability
 
 
-def get_inf_by_layers(model, X_full, batch_size, device):
+
+
+# def get_inf_by_layers_from_dataloader(model, dataloader, device):
+#     model.eval()    
+#     # idx_list = gen_idx_for_batches(batch_size=batch_size, total_size=X_full.shape[0])
+#     decoded_2d_list, encoded_out_dim_list, factors_probability_list = [], [], []
+#     with torch.no_grad():
+#         for X_eval, _ in tqdm(dataloader):
+#         # for ii in tqdm(range(len(idx_list) -1)):
+#             # X_eval = X_full[idx_list[ii]:idx_list[ii+1]]
+#             decoded_2d_, encoded_out_dim_, factors_probability_ = inf_by_layers(model, X_eval.to(device))
+#             decoded_2d_list += [decoded_2d_.detach().cpu()]
+#             encoded_out_dim_list += [encoded_out_dim_.detach().cpu()]
+            
+#             if factors_probability_ is None:
+#                 factors_probability_list += []
+#             else:
+#                 factors_probability_list += [factors_probability_.detach().cpu()]
+                
+#         decoded_2d, encoded_out_dim = torch.cat(decoded_2d_list, dim=0), torch.cat(encoded_out_dim_list, dim=0)
+#         if len(factors_probability_list) > 0:
+#             factors_probability = torch.cat(factors_probability_list, dim=0)
+#         else:
+#             factors_probability = None
+#     return decoded_2d, encoded_out_dim, factors_probability
+
+
+def get_inf_by_layers(model, X_full, batch_size, device, C_H_W=None):
     model.eval()    
     idx_list = gen_idx_for_batches(batch_size=batch_size, total_size=X_full.shape[0])
     decoded_2d_list, encoded_out_dim_list, factors_probability_list = [], [], []
     with torch.no_grad():
         for ii in tqdm(range(len(idx_list) -1)):
             X_eval = X_full[idx_list[ii]:idx_list[ii+1]]
-            decoded_2d_, encoded_out_dim_, factors_probability_ = inf_by_layers(model, X_eval.to(device))
+            decoded_2d_, encoded_out_dim_, factors_probability_ = inf_by_layers(model, X_eval.to(device), C_H_W)
             decoded_2d_list += [decoded_2d_.detach().cpu()]
             encoded_out_dim_list += [encoded_out_dim_.detach().cpu()]
             
@@ -53,17 +83,20 @@ def get_inf_by_layers(model, X_full, batch_size, device):
 
 
 
-def check_reconstruction(model, X_test):
-    device = X_test.device
+def check_reconstruction(model, test_tensor_or_ds, device, fakeseed=0, C_H_W=None):
+    X_test = test_tensor_or_ds
+    # device = X_test.device
     fig, axs = plt.subplots(3,10, figsize=(11,4))
     for i in range(0,10):
-        indx=i+30
+        indx=i+30 + fakeseed
         #true
         
         #pred
         with torch.no_grad():
             model.eval()
-            x_batch = X_test[indx].unsqueeze(0).to(device)
+            
+            x_batch = X_test[indx][0] if  isinstance(X_test[indx], (tuple, list)) else X_test[indx] 
+            x_batch = x_batch.unsqueeze(0).to(device)
             
             # plotting original images
             # print(x_batch.shape, x_batch.cpu().detach().permute(0, 2, 3, 1).numpy().shape)
@@ -71,7 +104,7 @@ def check_reconstruction(model, X_test):
             
 
             # forward pass with intermediate layers
-            decoded_2d, encoded_out_dim, factors_probability = inf_by_layers(model, x_batch)
+            decoded_2d, encoded_out_dim, factors_probability = inf_by_layers(model, x_batch, C_H_W)
             
         axs[1,i].imshow(decoded_2d[0].cpu().detach().permute(1, 2, 0).numpy()) # output
         mse = torch.nn.MSELoss()(decoded_2d[0].cpu().detach(), x_batch[0].cpu().detach())
@@ -198,6 +231,26 @@ def update_FID_class(fid, prepared_img, is_real, batch_size=512, update_list=Non
     return fid
 
 
+  
+def prepare_to_FID(dataset):
+
+    B_, C_, H_, W_ = dataset.shape
+    
+
+    preprocess = transforms.Compose([transforms.Resize(299)
+                                    #  transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                                    ,])
+
+    imgs = dataset
+    imgs = imgs.view(B_, C_, -1)
+    imgs = imgs - imgs.min(-1, keepdims=True)[0]
+    imgs = imgs/imgs.max(-1, keepdims=True)[0]
+    imgs = imgs.reshape(B_, C_, H_, W_)
+
+    C_ = 3 
+    imgs = preprocess(imgs.expand(B_, C_, H_, W_))
+
+    return imgs
 
 class ManualFID():
     def __init__(self, device='cpu'):
@@ -224,25 +277,34 @@ class ManualFID():
         
         self.inception_v3.to(self.device)
         
-        self.pool_tensor_real = None
-        self.pool_tensor_fake = None
+        self.pool_tensor_real = torch.Tensor()
+        self.pool_tensor_fake = torch.Tensor()
         
         
     def clear(self,):
-        self.pool_tensor_real = None
-        self.pool_tensor_fake = None
+        self.pool_tensor_real =  torch.Tensor()
+        self.pool_tensor_fake =  torch.Tensor()
         
     def clear_part(self, is_real):
         if is_real is True:
-            self.pool_tensor_real =  None
+            self.pool_tensor_real =  torch.Tensor()
             print('Real was cleared!') 
         else:
-            self.pool_tensor_fake =  None
+            self.pool_tensor_fake = torch.Tensor()
             print('Fake was cleared!')
+            
+            
+    def to(self, device):
+        self.device = device
+        self.inception_v3.to(self.device)
+        self.pool_tensor_fake = self.pool_tensor_fake.to(self.device)
+        self.pool_tensor_real = self.pool_tensor_real.to(self.device)
+        
+        
 
         
         
-    def update_full(self, prepared_img_full, is_real, batch_size=512):
+    def update_full(self, prepared_img_full, is_real, batch_size=512, transform=prepare_to_FID):
         device = self.device
         global gen_idx_for_batches
         idx_list = gen_idx_for_batches(prepared_img_full.shape[0], batch_size, verbose=True)
@@ -252,10 +314,12 @@ class ManualFID():
         x_full = images_full
         
         pool_list = []
+        self.inception_v3.eval()
+        self.inception_v3.to(device)
         for idx_start, ids_end in tqdm(zip(idx_list[-2::-1], idx_list[-1:0:-1]), total=len(idx_list)-1):
             with torch.no_grad():
-                self.inception_v3.to(device)
-                self.inception_v3(x_full[idx_start:ids_end].to(device))
+                x_batch = x_full[idx_start:ids_end]
+                self.inception_v3(transform(x_batch).to(device))
                 pool = self.activation['avgpool'].detach().squeeze()
                 pool_list += [pool]
         pool_tensor= torch.cat(pool_list, dim=0)
@@ -266,6 +330,40 @@ class ManualFID():
         else:
             self.pool_tensor_fake =  pool_tensor
             print('Fake is done!')
+            
+    # def update_transformed_full(tran):
+    #     pass
+        
+        
+        
+            
+            
+            
+    def update(self, x_batch, is_real):
+        device = self.device
+        
+        self.inception_v3.eval()
+        self.inception_v3.to(device)
+        with torch.no_grad():
+                self.inception_v3(x_batch.to(device))
+                pool = self.activation['avgpool'].detach().squeeze()
+        
+        if is_real:
+            self.pool_tensor_real =  torch.cat([self.pool_tensor_real , pool], dim=0)
+        else:
+            self.pool_tensor_fake =  torch.cat([self.pool_tensor_fake , pool], dim=0)
+            
+    
+            
+        
+
+                
+        
+        
+        
+        
+        
+        
             
      
             
@@ -291,6 +389,8 @@ class ManualFID():
         #     return matrix_sqrt
         
         matrix_sqrt = self._matrix_sqrt_real
+        self.pool_tensor_fake.to(self.device)
+        self.pool_tensor_real.to(self.device)
         
         if self.pool_tensor_real is None or self.pool_tensor_fake is None:
             print("real and fake should be updated!")
@@ -314,27 +414,13 @@ class ManualFID():
         return fid_manual.detach().cpu()
     
     
-    def compute(self, ):
-        # matrix_sqrt = self._matrix_sqrt_real
-        # def matrix_sqrt(matrix):
-        #     U, S, Vh = torch.linalg.svd(matrix)
-        #     L, V= torch.linalg.eig(matrix)
-            
-        #     matrix_sqrt = V @ torch.diag(torch.sqrt(L)) @ V.T
-        #     return matrix_sqrt
-        
-        
-        # def matrix_sqrt(matrix):
-        #     U, S, Vh = torch.linalg.svd(matrix)
-        #     matrix_sqrt = U @ torch.diag(torch.sqrt(S)) @ Vh
-        #     return matrix_sqrt
-        
-        if self.pool_tensor_real is None or self.pool_tensor_fake is None:
+    def compute(self, ):       
+        if self.pool_tensor_real.numel == 0 or self.pool_tensor_fake.numel == 0:
             print("real and fake should be updated!")
             return 0
         
-        pool_tensor_real = self.pool_tensor_real
-        pool_tensor_fake = self.pool_tensor_fake
+        pool_tensor_real = self.pool_tensor_real.to(self.device)
+        pool_tensor_fake = self.pool_tensor_fake.to(self.device)
         
         
         mu = pool_tensor_real.mean(0)
@@ -358,26 +444,7 @@ class ManualFID():
         return fid_manual.detach().cpu()
     
     
-    
-def prepare_to_FID(dataset):
-
-    B_, C_, H_, W_ = dataset.shape
-    
-
-    preprocess = transforms.Compose([transforms.Resize(299)
-                                    #  transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                                    ,])
-
-    imgs = dataset
-    imgs = imgs.view(B_, C_, -1)
-    imgs = imgs - imgs.min(-1, keepdims=True)[0]
-    imgs = imgs/imgs.max(-1, keepdims=True)[0]
-    imgs = imgs.reshape(B_, C_, H_, W_)
-
-    C_ = 3 
-    imgs = preprocess(imgs.expand(B_, C_, H_, W_))
-
-    return imgs
+  
             
      
    

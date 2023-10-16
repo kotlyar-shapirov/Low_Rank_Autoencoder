@@ -17,6 +17,7 @@ from torch.utils.data import Subset, Dataset, DataLoader
 import argparse
 
 
+torch.manual_seed(0)
 
 ### argparser!
 parser = argparse.ArgumentParser(description='Run AE-type models on training')
@@ -43,31 +44,35 @@ DATASET_TYPE = 'CelebA'
 
 # Upload model
 if DATASET_TYPE in ['MNIST']:
-    from models.R1AE import ConvLRAE, ConvVAE, ConvAE
+    from models.NIPS_R1AE_MNIST import ConvLRAE, ConvVAE, ConvAE
     print("models were downloaded from 'models.R1AE'")
     IN_FEATURES = 256*2*2
-    OUT_FEATURES = 128
-    MODEL_NAME_PREF = 'test1__'
-    SAVE_DIR = 'test_1_save'
+    BOTTLENECK = 128
+    OUT_FEATURES = 128*8*8
+    MODEL_NAME_PREF = 'test1_NIPS__'
+    SAVE_DIR = 'test_NIPS'
 elif DATASET_TYPE in ['CIFAR10']:
-    from models.R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
+    from models.NIPS_R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
     print("models were downloaded from 'models.R1AE_CelebA'")
     IN_FEATURES = 1024*2*2
-    OUT_FEATURES = 512
+    BOTTLENECK = 512
+    OUT_FEATURES = 1024*4*4
     # MODEL_NAME_PREF = 'test2__'
     # SAVE_DIR = 'test_2_save'
-    MODEL_NAME_PREF = 'test3__'
-    SAVE_DIR = 'test_3_save'
+    MODEL_NAME_PREF = 'test_NIPS__'
+    SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE in ['CelebA', 'CELEBA']:
-    from models.R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
+    from models.NIPS_R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
     print("models were downloaded from 'models.R1AE_CelebA'")
     IN_FEATURES = 1024*4*4
-    OUT_FEATURES = 512
+    BOTTLENECK = 512
+    OUT_FEATURES = 1024*8*8
+    
     # MODEL_NAME_PREF = 'test2__'
     # SAVE_DIR = 'test_2_save'
-    MODEL_NAME_PREF = 'test3__'
-    SAVE_DIR = 'test_3_save'
+    MODEL_NAME_PREF = 'test_NIPS__'
+    SAVE_DIR = 'test_NIPS'
 else:
    print("Warning! the default models will be uploaded!")
    from models.R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
@@ -89,18 +94,21 @@ else:
 # IN_FEATURES = 1024*4*4
 # OUT_FEATURES = 512
 
+# BOTTLENECK = 512
+# OUT_FEATURES = 1024*8*8
+
 
 
 #
 # BATCH_SIZE = 64
-BATCH_SIZE = 128
-# BATCH_SIZE = 32
-N_BINS = 20
+# BATCH_SIZE = 128
+BATCH_SIZE = 32
 EPOCHS = 200
 # EPOCHS = 100
 
 
 # LRAE parameters
+N_BINS = 20
 DROPOUT = 0.0
 TEMP = 0.5
 SAMPLING = 'gumbell'
@@ -111,7 +119,7 @@ TEST_SIZE = -1
 
 
 
-ALPHA = 1e-3
+ALPHA = 1e-1
 # ALPHA = 1e-2
 # EPOCH_SAVE = 25 # save and remain
 EPOCH_SAVE = 50 # save and remain
@@ -164,7 +172,7 @@ print()
 
 
 ## other parameters
-NUM_WORKERS = 10
+NUM_WORKERS = 32
 
 # Other parameters
 print('Other parameters')
@@ -229,11 +237,13 @@ elif DATASET_TYPE in ['CIFAR10']:
 elif DATASET_TYPE in ['CelebA', 'CELEBA']:
     train_ds = torchvision.datasets.CelebA('./files/', split='train', target_type ='attr', download=True,
                                 transform=torchvision.transforms.Compose([
+                                    transforms.CenterCrop(148),
                                     transforms.Resize([64, 64]),
                                     torchvision.transforms.ToTensor(),
                                 ]))
     test_ds = torchvision.datasets.CelebA('./files/', split='valid', target_type ='attr', download=True,
                                 transform=torchvision.transforms.Compose([
+                                    transforms.CenterCrop(148),
                                     transforms.Resize([64, 64]),
                                     torchvision.transforms.ToTensor(),
                                 ]))
@@ -294,7 +304,7 @@ print('\n\n')
 
 ###################### Initialization of the model
 device = DEVICE
-model_name = MODEL_NAME_PREF + f"{DATASET_TYPE}__{MODEL_TYPE}__{OUT_FEATURES}__{ALPHA}"
+model_name = MODEL_NAME_PREF + f"{DATASET_TYPE}__{MODEL_TYPE}__{BOTTLENECK}__{ALPHA}"
 
 print('\n\n')
 
@@ -303,12 +313,12 @@ print("Initialization of the model")
 print("model_name: ", model_name, '\n\n' )
 if MODEL_TYPE == 'LRAE':
     GRID = torch.arange(1,N_BINS+1).to(device)/N_BINS
-    model = ConvLRAE(IN_FEATURES, OUT_FEATURES, N_BINS, GRID, dropout=DROPOUT, nonlinearity=NONLINEARITY,
+    model = ConvLRAE(IN_FEATURES, BOTTLENECK, OUT_FEATURES, N_BINS, GRID, dropout=DROPOUT, nonlinearity=NONLINEARITY,
                 sampling=SAMPLING, temperature=TEMP, in_channels=ds_in_channels).to(device)
 elif MODEL_TYPE == 'VAE':
-    model = ConvVAE(IN_FEATURES, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
+    model = ConvVAE(IN_FEATURES, BOTTLENECK, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
 elif MODEL_TYPE == 'AE':
-    model = ConvAE(IN_FEATURES, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
+    model = ConvAE(IN_FEATURES, BOTTLENECK, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
 else:
     assert False, f"Error, bad model type, select from: {GOOD_MODEL_TYPE}"
       
@@ -377,7 +387,16 @@ for epoch in tqdm(range(EPOCHS)):
         encoded_out_dim, factors_probability = model.low_rank.low_rank_pants(x_flat)
         decoded_1d = model.low_rank.decoder(encoded_out_dim)
         
+        # print(B, C, H, W )
         # 2d upsampling
+        if DATASET_TYPE in ['MNIST']:
+            C, H, W = C//2, H*4, W*4
+        elif DATASET_TYPE in ['CELEBA', 'CelebA', 'CIFAR10']:
+            C, H, W = C, H*2, W*2
+        else:
+            assert 0, f'Error, Bad DATASET_TYPE={DATASET_TYPE}, should be in {GOOD_DATASET_TYPE}'
+        
+        # print(B, C, H, W )
         decoded_2d_small = decoded_1d.view(B, C, H, W)
         decoded_2d = model.up(decoded_2d_small)
         
@@ -388,9 +407,11 @@ for epoch in tqdm(range(EPOCHS)):
         # loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)
         loss = criterion(decoded_2d.view(-1), x_batch.view(-1)) 
         if MODEL_TYPE == 'VAE':
-            loss += alpha_kl*factors_probability.mean()  # KL loss
+            loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
+            loss -= alpha_kl*factors_probability.mean()  # KL loss
             
         if MODEL_TYPE == 'LRAE':
+            loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
             factors_probability = nn.Softmax(dim=-1)(factors_probability)
             loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)            
             loss += alpha_entropy*torch.mean(torch.exp(loss_entropy)) # entropy loss
@@ -413,6 +434,7 @@ for epoch in tqdm(range(EPOCHS)):
             loss_train_cum = 0
             with torch.no_grad():
                 model.eval() # put to eval
+                
                 for x_batch, y_batch in dl_test:
                     # model forward
                     x_batch, y_batch = x_batch.to(device), y_batch.to(device)
@@ -461,7 +483,7 @@ for epoch in tqdm(range(EPOCHS)):
         plt.plot(loss_list_train, alpha=0.5, label='train')
         plt.plot(loss_list_test, alpha=0.5, label='test')
         plt.legend()
-        plt.savefig( PATH  + "_loss.png")
+        plt.savefig( PATH  + "_loss.jpg")
         pass
             
             
