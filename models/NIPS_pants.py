@@ -92,11 +92,14 @@ class PantsVAE(nn.Module):
     def forward(self,x):
         device = x.device
         mu = self.mu(x)
-        sigma = torch.exp(self.sigma(x))
+        logvar = self.sigma(x)
+        
+        sigma = torch.exp(0.5*logvar)
         rand = torch.randn(mu.shape).to(device)
         encoded = rand*sigma + mu
         
-        KL = sigma**2 + mu**2 - torch.log(sigma) - 1/2
+        # KL = sigma**2 + mu**2 - torch.log(sigma) - 1/2
+        KL = 1 + logvar - mu.pow(2) - logvar.exp()
         
         return encoded, KL
     

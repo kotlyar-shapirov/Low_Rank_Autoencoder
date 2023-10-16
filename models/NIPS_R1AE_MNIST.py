@@ -41,7 +41,7 @@ class ConvLRAE(nn.Module):
                                            sampling, temperature)
         
         self.up = nn.Sequential(
-                                UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
+                                # UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=128, out_features=64, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=64, out_features=32, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=32, out_features=in_channels,
@@ -58,7 +58,7 @@ class ConvLRAE(nn.Module):
         decoded = self.low_rank(x_flat)
 
         # upsample
-        x_2d = decoded.view(B, C, H*2, W*2)
+        x_2d = decoded.view(B, C//2, H*4, W*4)
         x_out = self.up(x_2d)
 
         return x_out
@@ -88,7 +88,7 @@ class ConvVAE(nn.Module):
         self.low_rank = InternalVAutoencoder(in_features, bottleneck_features, out_features, nonlinearity)
         
         self.up = nn.Sequential(
-                                UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
+                                # UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=128, out_features=64, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=64, out_features=32, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=32, out_features=in_channels,
@@ -105,7 +105,7 @@ class ConvVAE(nn.Module):
         decoded = self.low_rank(x_flat)
 
         # upsample
-        x_2d = decoded.view(B, C, H*2, W*2)
+        x_2d = decoded.view(B, C//2, H*4, W*4)
         x_out = self.up(x_2d)
 
         return x_out
@@ -134,7 +134,7 @@ class ConvAE(nn.Module):
         self.low_rank = InternalAutoencoder(in_features, bottleneck_features, out_features, nonlinearity)
         
         self.up = nn.Sequential(
-                                UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
+                                # UpsampleBlock(in_features=256, out_features=128, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=128, out_features=64, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=64, out_features=32, nonlinearity=nonlinearity),
                                 UpsampleBlock(in_features=32, out_features=in_channels,
@@ -151,7 +151,7 @@ class ConvAE(nn.Module):
         decoded = self.low_rank(x_flat)
 
         # upsample
-        x_2d = decoded.view(B, C, H*2, W*2)
+        x_2d = decoded.view(B, C//2, H*4, W*4)
         x_out = self.up(x_2d)
 
         return x_out
