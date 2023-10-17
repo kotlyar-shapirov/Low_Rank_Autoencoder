@@ -2,11 +2,18 @@
 files/
 test_*/
 recorded models/
-models/__pycache__/
+
 saved_models/
 saved_models_old/
 recorded models/
 evaluation/
+eval_NIPS/
+
+models/__pycache__/
+utils/__pycache__/
+__pycache__/
+
+
 
 # file types
 *.code-workspace

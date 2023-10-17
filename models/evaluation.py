@@ -258,6 +258,7 @@ class ManualFID():
         inception_v3.eval()
         
         self.device = device
+        self.device_storage = 'cpu'
         
         for param in inception_v3.parameters():
             param.request_grad = False
@@ -277,28 +278,28 @@ class ManualFID():
         
         self.inception_v3.to(self.device)
         
-        self.pool_tensor_real = torch.Tensor()
-        self.pool_tensor_fake = torch.Tensor()
+        self.pool_tensor_real = torch.Tensor([]).to(self.device_storage)
+        self.pool_tensor_fake = torch.Tensor([]).to(self.device_storage)
         
         
     def clear(self,):
-        self.pool_tensor_real =  torch.Tensor()
-        self.pool_tensor_fake =  torch.Tensor()
+        self.pool_tensor_real =  torch.Tensor([]).to(self.device_storage)
+        self.pool_tensor_fake =  torch.Tensor([]).to(self.device_storage)
         
     def clear_part(self, is_real):
-        if is_real is True:
-            self.pool_tensor_real =  torch.Tensor()
+        if is_real == True:
+            self.pool_tensor_real =  torch.Tensor([]).to(self.device_storage)
             print('Real was cleared!') 
         else:
-            self.pool_tensor_fake = torch.Tensor()
+            self.pool_tensor_fake = torch.Tensor([]).to(self.device_storage)
             print('Fake was cleared!')
             
             
     def to(self, device):
         self.device = device
-        self.inception_v3.to(self.device)
-        self.pool_tensor_fake = self.pool_tensor_fake.to(self.device)
-        self.pool_tensor_real = self.pool_tensor_real.to(self.device)
+        # self.inception_v3.to(self.device)
+        # self.pool_tensor_fake = self.pool_tensor_fake.to(self.device_storage)
+        # self.pool_tensor_real = self.pool_tensor_real.to(self.device_storage)
         
         
 
@@ -320,15 +321,15 @@ class ManualFID():
             with torch.no_grad():
                 x_batch = x_full[idx_start:ids_end]
                 self.inception_v3(transform(x_batch).to(device))
-                pool = self.activation['avgpool'].detach().squeeze()
+                pool = self.activation['avgpool'].detach().squeeze().to(self.device_storage)
                 pool_list += [pool]
         pool_tensor= torch.cat(pool_list, dim=0)
         
         if is_real:
-            self.pool_tensor_real =  pool_tensor
+            self.pool_tensor_real =  pool_tensor.to(self.device_storage)
             print('Real is done!') 
         else:
-            self.pool_tensor_fake =  pool_tensor
+            self.pool_tensor_fake =  pool_tensor.to(self.device_storage)
             print('Fake is done!')
             
     # def update_transformed_full(tran):
@@ -339,19 +340,19 @@ class ManualFID():
             
             
             
-    def update(self, x_batch, is_real):
+    def update(self, x_batch, is_real, transform=prepare_to_FID):
         device = self.device
         
         self.inception_v3.eval()
         self.inception_v3.to(device)
         with torch.no_grad():
-                self.inception_v3(x_batch.to(device))
-                pool = self.activation['avgpool'].detach().squeeze()
+                self.inception_v3(transform(x_batch).to(device))
+                pool = self.activation['avgpool'].detach().squeeze().to(self.device_storage)
         
         if is_real:
-            self.pool_tensor_real =  torch.cat([self.pool_tensor_real , pool], dim=0)
+            self.pool_tensor_real =  torch.cat([self.pool_tensor_real , pool], dim=0).to(self.device_storage)
         else:
-            self.pool_tensor_fake =  torch.cat([self.pool_tensor_fake , pool], dim=0)
+            self.pool_tensor_fake =  torch.cat([self.pool_tensor_fake , pool], dim=0).to(self.device_storage)
             
     
             
@@ -415,23 +416,24 @@ class ManualFID():
     
     
     def compute(self, ):       
-        if self.pool_tensor_real.numel == 0 or self.pool_tensor_fake.numel == 0:
-            print("real and fake should be updated!")
-            return 0
+        if (self.pool_tensor_real.numel() < 1) or (self.pool_tensor_fake.numel() < 1):
+            print("Error real and fake should be updated!!!!!")
+            print(self.pool_tensor_real.numel(), self.pool_tensor_fake.numel())
+            return -1
         
-        pool_tensor_real = self.pool_tensor_real.to(self.device)
-        pool_tensor_fake = self.pool_tensor_fake.to(self.device)
+        pool_tensor_real = self.pool_tensor_real
+        pool_tensor_fake = self.pool_tensor_fake
         
         
-        mu = pool_tensor_real.mean(0)
+        mu = pool_tensor_real.mean(0).to(self.device)
         # self.mu = mu
-        sigma =  torch.cov(pool_tensor_real.T)
+        sigma =  torch.cov(pool_tensor_real.T).to(self.device)
         # self.sigma = sigma
         # sigma_sqrt = matrix_sqrt(sigma)
 
-        mu_w = pool_tensor_fake.mean(0)
+        mu_w = pool_tensor_fake.mean(0).to(self.device)
         # self.mu_w = mu_w
-        sigma_w =  torch.cov(pool_tensor_fake.T)
+        sigma_w =  torch.cov(pool_tensor_fake.T).to(self.device)
         # self.sigma_w = sigma_w
 
         fid_manual = torch.sum((mu - mu_w)**2) + sigma.trace() + sigma_w.trace() - 2*self._trace_of_matsqrt(sigma @ sigma_w)
@@ -444,10 +446,36 @@ class ManualFID():
         return fid_manual.detach().cpu()
     
     
-  
-            
+def get_MSE_PSNR_score(decoded_2d, X_full):
+    mse = torch.nn.MSELoss()(decoded_2d.cpu().detach(), X_full.cpu().detach())
+    psnr = 10*torch.log10(1 / (mse + 1e-20))
+    return mse.item(), psnr.item()         
      
    
+def calculate_FID(X_full_real, X_full_fake, batch_size, device, fid_class=None, transform=prepare_to_FID):
+    if fid_class is None:
+        m_fid = ManualFID(device=device)
+    else:
+        m_fid = fid_class
+        m_fid.to(device)
+
+ 
+
+    if not (X_full_real  is None):
+        m_fid.clear_part(is_real=True)
+        torch.cuda.empty_cache()
+        m_fid.update_full(X_full_real, True, batch_size=batch_size, transform=transform)
         
+   
+    if X_full_fake is not None:
+        m_fid.clear_part(is_real=False)
+        torch.cuda.empty_cache()
+        m_fid.update_full(X_full_fake, False, batch_size=batch_size, transform=transform)
+    
+        
+    fid_value = m_fid.compute().item()
+    
+        
+    return fid_value  
         
 
