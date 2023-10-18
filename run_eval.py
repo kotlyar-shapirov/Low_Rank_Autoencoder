@@ -76,14 +76,13 @@ MODEL_DIR = model_dir
 MODEL_NAME = model_name
 
 model_name_in_list = model_name.split('__')
-
 DATASET_TYPE = model_name_in_list[1]
 MODEL_TYPE = model_name_in_list[2]
 OUT_FEATURES = int(model_name_in_list[3])
 ALPHA = float(model_name_in_list[4])
 EPOCHS = model_name_in_list[5]
 
-print("Eval {load_path} was started!")
+print(f"Eval {load_path} was started!")
 
 
 
@@ -355,7 +354,7 @@ plt.close()
 mse_test, psnr_test = get_MSE_PSNR_score(decoded_2d2, X_full_test)
 mse_train, psnr_train = get_MSE_PSNR_score(decoded_2d1, X_full_train)
 
-score_str = f"MSE: {mse_test:.4f}({mse_train:.4f}); " + f"PSNR: {psnr_test:.2f} ({psnr_train:.2f}); "
+score_str = f"MSE: {mse_test:.4f} ({mse_train:.4f});   " + f"PSNR: {psnr_test:.2f} ({psnr_train:.2f});   "
 update_out_file(score_str, out_file_path, print_=True)
 #########################
 
@@ -450,18 +449,21 @@ m_fid_value = calculate_FID(imgs_real, imgs_fake, TEST_BATCH_SIZE_SMALL, device_
 print("fake:", m_fid_value, '\n')
 
 #GM{N_GM_COMPONENTS}
-imgs_fake = dataset_list[1]
+imgs_fake = dataset_list[2]
 m_fid_value_gm = calculate_FID(None, imgs_fake, TEST_BATCH_SIZE_SMALL, device_fid, fid_class=m_fid, transform=prepare_to_FID)
 print(f"fake gm{N_GM_COMPONENTS}:", m_fid_value_gm, '\n')
 
 
-score_str = f"FID gm1: {m_fid_value :.2f} \nFID gm{N_GM_COMPONENTS}: {m_fid_value_gm :.2f}"
+score_str = f"FID gm1: {m_fid_value :.2f};   FID gm{N_GM_COMPONENTS}: {m_fid_value_gm :.2f}"
+# score_str = f"FID gm1: {m_fid_value :.2f} \nFID gm{N_GM_COMPONENTS}: {m_fid_value_gm :.2f}"
 update_out_file(score_str, out_file_path, print_=True)
 
-
-
 #########################
+
+
+
 timer_end = timer()
-print("Evaluation was successfully finished!")
 print(f"Elapsed time: {timer_end - timer_start:.2f} second") # Time in seconds, e.g. 5.38091952400282
+print(f"Evaluation {load_path} was successfully finished!")
+print('\n\n\n\n\n')
 

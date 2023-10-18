@@ -6,8 +6,6 @@ import os
 
 from tqdm import tqdm
 
-# Upload model
-# from models.R1AE import ConvLRAE, ConvVAE, ConvAE
 
 
 import torchvision
@@ -19,7 +17,11 @@ import argparse
 
 from utils.script_utils import select_dataset, init_model, setup_dataset_training
 from utils.loss import wasser_loss
-from main_utils import get_models_class_list
+from main_utils import get_models_class_list, get_base_model_parameters
+
+
+from timeit import default_timer as timer
+timer_start = timer() # start timer
 
 torch.manual_seed(0)
 # Defaults
@@ -39,8 +41,10 @@ parser.add_argument('-a', '--architecture', type=str, default='NIPS',
 parser.add_argument('-D', '--dataset', type=str, default='MNIST',  
                     help=f'dataset type: {GOOD_DATASET_TYPE}')
 
-parser.add_argument('-A', '--alpha', type=str, default=0.01,  
+parser.add_argument('-A', '--alpha', type=str, default=0.1,  
                     help=f'alpha coeff')
+parser.add_argument('-b', '--batch_size', type=str, default=32,  
+                    help=f'Batch size')
 
 parser.add_argument('-d', '--device', type=str, default='cuda:1', 
                     help=f'torch device name. E.g.: cpu, cuda:0, cuda:1')
@@ -54,125 +58,106 @@ args = parser.parse_args()
 DEVICE = args.device
 MODEL_TYPE = args.model
 
-# DEVICE = 'cuda:0' 
-# MODEL_TYPE = 'LRAE'
-
 ARCHITECTURE_TYPE = args.architecture
 DATASET_TYPE = args.dataset
 
-
 ALPHA = float(args.alpha)
+BATCH_SIZE = int(args.batch_size)
 
-# ARCHITECTURE_TYPE = 'NIPS'
-# DATASET_TYPE = 'MNIST'
-# DATASET_TYPE = 'CIFAR10'
-# DATASET_TYPE = 'CelebA'
+EPOCHS = 51
 
+
+
+#### setup runs
+print("Setup runs")
+if DATASET_TYPE.upper() in ['MNIST']:
+    MODEL_NAME_PREF = f'test_b_NIPS_{BATCH_SIZE}__'
+    SAVE_DIR = 'test_NIPS'
+    
+elif DATASET_TYPE.upper() in ['CIFAR10']:
+    MODEL_NAME_PREF = 'test_NIPS__'
+    SAVE_DIR = 'test_NIPS'
+    
+elif DATASET_TYPE.upper() in ['CELEBA']: 
+    MODEL_NAME_PREF = 'test_NIPS__'
+    SAVE_DIR = 'test_NIPS'
+else:
+   print("Warning! the default run setups was not setuped!")
+   
+# MODEL_NAME_PREF = 'test_NIPS__'
+# SAVE_DIR = 'test_NIPS'
+################### 
 
 
 
 models_class_list = get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE) 
 
 
-# setup runs
-if DATASET_TYPE in ['MNIST']:
-    IN_FEATURES = 256*2*2
-    BOTTLENECK = 128
-    
-    # BOTTLENECK=128
-    
-    OUT_FEATURES = 128*8*8
-    MODEL_NAME_PREF = 'test_o_NIPS__'
-    SAVE_DIR = 'test_NIPS'
-    ds_in_channels = 1
-    
-elif DATASET_TYPE in ['CIFAR10']:
-    IN_FEATURES = 1024*2*2
-    BOTTLENECK = 512
-    OUT_FEATURES = 1024*4*4
 
-    MODEL_NAME_PREF = 'test_NIPS__'
-    SAVE_DIR = 'test_NIPS'
-    ds_in_channels = 3
-    
-elif DATASET_TYPE in ['CelebA', 'CELEBA']:
 
-    IN_FEATURES = 1024*4*4
-    BOTTLENECK = 512
-    OUT_FEATURES = 1024*8*8
-    
-    MODEL_NAME_PREF = 'test_NIPS__'
-    SAVE_DIR = 'test_NIPS'
-    ds_in_channels = 3
-    
-    
-else:
-   print("Warning! the default run setups was not setuped!")
-
-   
-   
-   
  
+   
+   
+### Model parameters
+
+# setup model parameters
+
+models_params = get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE)
+BOTTLENECK =  models_params['BOTTLENECK']
     
     
-
     
-
-
-
-# MODEL_NAME_PREF = 'test2__'
-# SAVE_DIR = 'test_1_save'
-# SAVE_DIR = ''
-
-# IN_FEATURES = 256*2*2
-# OUT_FEATURES = 128
+# if DATASET_TYPE.upper() in ['MNIST']:
+#     ds_in_channels = 3
     
-# IN_FEATURES = 1024*4*4
-# OUT_FEATURES = 512
+#     IN_FEATURES = 256*2*2
+#     BOTTLENECK = 128
+#     OUT_FEATURES = 128*8*8
+#     ds_in_channels = 1
+    
+# elif DATASET_TYPE.upper() in ['CIFAR10']:
+#     ds_in_channels = 3
+    
+#     IN_FEATURES = 1024*2*2
+#     BOTTLENECK = 512
+#     OUT_FEATURES = 1024*4*4
 
-# BOTTLENECK = 512
-# OUT_FEATURES = 1024*8*8
+# elif DATASET_TYPE.upper() in ['CELEBA']:
+#     ds_in_channels = 3
+    
+#     IN_FEATURES = 1024*4*4
+#     BOTTLENECK = 512
+#     OUT_FEATURES = 1024*8*8
 
-
-
-#
-# BATCH_SIZE = 64
-# 
-BATCH_SIZE = 32
-EPOCHS = 101
-
-# BATCH_SIZE = 512
-# EPOCHS = 1
-# EPOCHS = 100
+# else:
+#    print("Warning! the default module parameter setups was not setuped!")
+   
+   
+   
+# other Model parameters
+NONLINEARITY = nn.ReLU()
+models_params['NONLINEARITY'] = nn.ReLU()
+###
 
 
 # LRAE parameters
-N_BINS = 20
-DROPOUT = 0.0
-TEMP = 0.5
-SAMPLING = 'gumbell'
+N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+models_params = models_params | {'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
+##
 
 
 TRAIN_SIZE = -1
 TEST_SIZE = -1
 
 
-
-# ALPHA = 1e-1
-# ALPHA = 1e-2
-# EPOCH_SAVE = 25 # save and remain
-EPOCH_SAVE = 50 # save and remain
+# EPOCH_SAVE = 50 # save and remain
+EPOCH_SAVE = 25 # save and remain
 
 EPOCH_SAVE_BACKUP = 5 # save and rewrite 
 SHOW_LOSS_BACKUP = 5 # save and rewrite 
 LEARNING_RATE = 1e-4
 
-NONLINEARITY = nn.ReLU()
 
-
-models_params = {'IN_FEATURES': IN_FEATURES, 'BOTTLENECK': BOTTLENECK, 'OUT_FEATURES': OUT_FEATURES,
-                 'NONLINEARITY': NONLINEARITY, 'DS_IN_CHANNELS': ds_in_channels,
-                 'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
 
 
 
@@ -189,19 +174,15 @@ def print_params(param_list, param_names_list):
 # Show input data
 print('Input script data', '\n')
 print('Main parameters:')
-in_param_list = [SAVE_DIR, DEVICE, MODEL_TYPE, DATASET_TYPE,  ARCHITECTURE_TYPE, OUT_FEATURES, EPOCHS]
-in_param__names_list = ['SAVE_DIR', 'DEVICE', 'MODEL_TYPE', 'DATASET_TYPE', 'ARCHITECTURE_TYPE', 'OUT_FEATURES', 'EPOCHS']
+in_param_list = [SAVE_DIR, DEVICE, MODEL_TYPE, DATASET_TYPE,  ARCHITECTURE_TYPE, BOTTLENECK, EPOCHS]
+in_param__names_list = ['SAVE_DIR', 'DEVICE', 'MODEL_TYPE', 'DATASET_TYPE', 'ARCHITECTURE_TYPE', 'BOTTLENECK', 'EPOCHS']
 print_params(in_param_list, in_param__names_list)
 print()
 print()
 
 
 print('All model parameters:')
-# in_param_list = [OUT_FEATURES, NONLINEARITY, IN_FEATURES,  N_BINS, DROPOUT, TEMP, SAMPLING]
-# in_param__names_list = ['OUT_FEATURES', 'NONLINEARITY', 'IN_FEATURES',  'N_BINS', 'DROPOUT', 'TEMP', 'SAMPLING']
-# print_params(in_param_list, in_param__names_list)
 print_params(models_params.values(), models_params.keys())
-# print(models_params)
 print()
 
 print('Training parameters:')
@@ -355,6 +336,7 @@ for epoch in tqdm(range(EPOCHS)):
         decoded_1d = model.low_rank.decoder(encoded_out_dim)
         
         # print(B, C, H, W )
+        
         # 2d upsampling
         if DATASET_TYPE in ['MNIST']:
             C, H, W = C//2, H*4, W*4
@@ -368,10 +350,6 @@ for epoch in tqdm(range(EPOCHS)):
         decoded_2d = model.up(decoded_2d_small)
         
         # loss
-
-#         loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)
-        # factors_probability = nn.Softmax(dim=-1)(factors_probability)
-        # loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)
         loss = criterion(decoded_2d.view(-1), x_batch.view(-1)) 
         if MODEL_TYPE == 'VAE':
             loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
@@ -471,10 +449,12 @@ torch.save({
         
         }, PATH + f"__{epoch}__end.pth")
 
-print("Model training was successfully finished and saved!")
-
-
-
-
 
 #######################
+
+
+timer_end = timer()
+print(f"Elapsed time: {timer_end - timer_start:.2f} second") # Time in seconds, e.g. 5.38091952400282
+print(f"Model training for {model_name} was successfully finished and saved!")
+print('\n\n\n\n\n')
+
