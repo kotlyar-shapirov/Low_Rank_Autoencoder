@@ -28,7 +28,7 @@ from models.evaluation import get_MSE_PSNR_score, calculate_FID
 from timeit import default_timer as timer
 
 from utils.script_utils import setup_dataset_eval, update_out_file, plot_loss, select_dataset, init_model
-from main_utils import get_models_class_list
+from main_utils import get_models_class_list, get_base_model_parameters, get_eval_parameters
 
 timer_start = timer() # start timer
 
@@ -89,65 +89,78 @@ print(f"Eval {load_path} was started!")
 models_class_list = get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE) 
 
 # Upload model
-if DATASET_TYPE in ['MNIST']:
 
-    IN_FEATURES = 256*2*2
-    BOTTLENECK = 128
-    C_H_W = [128, 8, 8]
-    OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
-    DS_IN_CHANNELS = 1
-    N_GM_COMPONENTS = 4
 
-elif DATASET_TYPE in ['CIFAR10']:
-    IN_FEATURES = 1024*2*2
-    C_H_W = [1024, 8, 8]
-    BOTTLENECK = 512
-    OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
-    DS_IN_CHANNELS = 3
-    N_GM_COMPONENTS = 10
+models_params = get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE)
+BOTTLENECK =  models_params['BOTTLENECK']  
+C_H_W = models_params['C_H_W']
+
+# if DATASET_TYPE in ['MNIST']:
+
+#     IN_FEATURES = 256*2*2
+#     BOTTLENECK = 128
+#     C_H_W = [128, 8, 8]
+#     OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
+#     DS_IN_CHANNELS = 1
+#     N_GM_COMPONENTS = 4
+
+# elif DATASET_TYPE in ['CIFAR10']:
+#     IN_FEATURES = 1024*2*2
+#     C_H_W = [1024, 8, 8]
+#     BOTTLENECK = 512
+#     OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
+#     DS_IN_CHANNELS = 3
+#     N_GM_COMPONENTS = 10
 
     
-elif DATASET_TYPE in ['CelebA', 'CELEBA']:
-    IN_FEATURES = 1024*4*4
-    C_H_W = [1024, 8, 8]
-    BOTTLENECK = 512
-    OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
-    DS_IN_CHANNELS = 3
-    N_GM_COMPONENTS = 10
-else:
-   print("Warning! the default run setups was not setuped!")
+# elif DATASET_TYPE in ['CelebA', 'CELEBA']:
+#     IN_FEATURES = 1024*4*4
+#     C_H_W = [1024, 8, 8]
+#     BOTTLENECK = 512
+#     OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
+#     DS_IN_CHANNELS = 3
+#     N_GM_COMPONENTS = 10
+# else:
+#    print("Warning! the default run setups was not setuped!")
    
     
+    
+# other Model parameters
 NONLINEARITY = nn.ReLU()
-
-# TRAIN_SIZE, TEST_SIZE = -1, -1
-
+models_params['NONLINEARITY'] = nn.ReLU()
+###
 
 # LRAE parameters
-N_BINS = 20
-DROPOUT = 0.0
-TEMP = 0.5
-SAMPLING = 'gumbell'
+N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+models_params = models_params | {'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
+##
 
 
 # Testing parameters
 N_FAKE_SAMPLES = 50000
 TRAIN_SIZE, TEST_SIZE = -1, -1
 
+eval_params = get_eval_parameters(DATASET_TYPE)
+
+N_GM_COMPONENTS = eval_params['N_GM_COMPONENTS']
+
+
+
 # N_FAKE_SAMPLES = 1000
 # TRAIN_SIZE, TEST_SIZE = 1000, 1000
 
 
 
-models_params = {'IN_FEATURES': IN_FEATURES, 'BOTTLENECK': BOTTLENECK, 'OUT_FEATURES': OUT_FEATURES,
-                 'NONLINEARITY': NONLINEARITY, 'DS_IN_CHANNELS': DS_IN_CHANNELS,
-                 'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
+# models_params = {'IN_FEATURES': IN_FEATURES, 'BOTTLENECK': BOTTLENECK, 'OUT_FEATURES': OUT_FEATURES,
+#                  'NONLINEARITY': NONLINEARITY, 'DS_IN_CHANNELS': DS_IN_CHANNELS,
+#                  'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
 
 
 
 
 TEST_BATCH_SIZE_BIG = 512
 TEST_BATCH_SIZE_SMALL = 128
+
 if DEVICE in ['cuda:2', 'cuda:3', 'cuda:4']:
     TEST_BATCH_SIZE_BIG = 512
     TEST_BATCH_SIZE_SMALL = 128
@@ -182,7 +195,7 @@ print()
 print('All model parameters:')
 # in_param_list = [BOTTLENECK, OUT_FEATURES, NONLINEARITY, IN_FEATURES,  N_BINS, DROPOUT, TEMP, SAMPLING]
 # in_param__names_list = ['BOTTLENECK', 'OUT_FEATURES', 'NONLINEARITY', 'IN_FEATURES',  'N_BINS', 'DROPOUT', 'TEMP', 'SAMPLING']
-print_params(in_param_list, in_param__names_list)
+# print_params(in_param_list, in_param__names_list)
 print_params(models_params.values(), models_params.keys())
 print()
 
@@ -320,9 +333,11 @@ print("Figure was saved:", save_path_str)
 with torch.no_grad():
     model.eval()    
     decoded_2d1, encoded_out_dim1, factors_probability1 = get_inf_by_layers(model, X_full_train,
-                                                                            batch_size=TEST_BATCH_SIZE_BIG, device=device, C_H_W=C_H_W)    
+                                                                            batch_size=TEST_BATCH_SIZE_BIG,
+                                                                            device=device, C_H_W=C_H_W)    
     decoded_2d2, encoded_out_dim2, factors_probability2 = get_inf_by_layers(model, X_full_test,
-                                                                            batch_size=TEST_BATCH_SIZE_BIG, device=device, C_H_W=C_H_W)
+                                                                            batch_size=TEST_BATCH_SIZE_BIG,
+                                                                            device=device, C_H_W=C_H_W)
 
 ############
 
@@ -367,7 +382,8 @@ print(f"Rec FID test: {r_fid_value :.2f}")
 
 #train
 r_fid_train = ManualFID(device=device)
-r_fid_value_train = calculate_FID(X_full_train, decoded_2d1, TEST_BATCH_SIZE_SMALL, device, fid_class=r_fid_train, transform=prepare_to_FID)
+r_fid_value_train = calculate_FID(X_full_train, decoded_2d1, TEST_BATCH_SIZE_SMALL, device, fid_class=r_fid_train,
+                                  transform=prepare_to_FID)
 print(f"Rec FID train: {r_fid_value_train :.2f}")
 
 score_str = f"Rec FID: {r_fid_value:.2f} ({r_fid_value_train:.2f})"

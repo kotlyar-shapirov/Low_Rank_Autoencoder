@@ -106,7 +106,7 @@ def init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_params, d
     TEMP = models_params['TEMP']
     
     
-    
+    ### need to update for V1
     ConvAE, ConvVAE, ConvLRAE = models_class_list
     if MODEL_TYPE == 'LRAE':
         GRID = torch.arange(1,N_BINS+1).to(device)/N_BINS

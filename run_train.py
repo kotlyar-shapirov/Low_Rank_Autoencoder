@@ -64,14 +64,15 @@ DATASET_TYPE = args.dataset
 ALPHA = float(args.alpha)
 BATCH_SIZE = int(args.batch_size)
 
-EPOCHS = 51
+EPOCHS = 201
 
-
+LEARNING_RATE = 1e-4
+# LEARNING_RATE = 1e-4 * 5.7
 
 #### setup runs
 print("Setup runs")
 if DATASET_TYPE.upper() in ['MNIST']:
-    MODEL_NAME_PREF = f'test_b_NIPS_{BATCH_SIZE}__'
+    MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
     SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE.upper() in ['CIFAR10']:
@@ -103,36 +104,7 @@ models_class_list = get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE)
 # setup model parameters
 
 models_params = get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE)
-BOTTLENECK =  models_params['BOTTLENECK']
-    
-    
-    
-# if DATASET_TYPE.upper() in ['MNIST']:
-#     ds_in_channels = 3
-    
-#     IN_FEATURES = 256*2*2
-#     BOTTLENECK = 128
-#     OUT_FEATURES = 128*8*8
-#     ds_in_channels = 1
-    
-# elif DATASET_TYPE.upper() in ['CIFAR10']:
-#     ds_in_channels = 3
-    
-#     IN_FEATURES = 1024*2*2
-#     BOTTLENECK = 512
-#     OUT_FEATURES = 1024*4*4
-
-# elif DATASET_TYPE.upper() in ['CELEBA']:
-#     ds_in_channels = 3
-    
-#     IN_FEATURES = 1024*4*4
-#     BOTTLENECK = 512
-#     OUT_FEATURES = 1024*8*8
-
-# else:
-#    print("Warning! the default module parameter setups was not setuped!")
-   
-   
+BOTTLENECK =  models_params['BOTTLENECK']      
    
 # other Model parameters
 NONLINEARITY = nn.ReLU()
@@ -155,7 +127,7 @@ EPOCH_SAVE = 25 # save and remain
 
 EPOCH_SAVE_BACKUP = 5 # save and rewrite 
 SHOW_LOSS_BACKUP = 5 # save and rewrite 
-LEARNING_RATE = 1e-4
+
 
 
 
