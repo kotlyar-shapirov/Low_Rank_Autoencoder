@@ -15,7 +15,7 @@ from torch.utils.data import Subset, Dataset, DataLoader
 import argparse
 
 
-from utils.script_utils import select_dataset, init_model, setup_dataset_training
+from utils.script_utils import select_dataset, init_model, setup_dataset_training, save_checkpoint_from
 from utils.loss import wasser_loss
 from main_utils import get_models_class_list, get_base_model_parameters
 
@@ -65,9 +65,7 @@ ALPHA = float(args.alpha)
 BATCH_SIZE = int(args.batch_size)
 
 EPOCHS = 201
-
 LEARNING_RATE = 1e-4
-# LEARNING_RATE = 1e-4 * 5.7
 
 #### setup runs
 print("Setup runs")
@@ -80,7 +78,7 @@ elif DATASET_TYPE.upper() in ['CIFAR10']:
     SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE.upper() in ['CELEBA']: 
-    MODEL_NAME_PREF = 'test_NIPS__'
+    MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
     SAVE_DIR = 'test_NIPS'
 else:
    print("Warning! the default run setups was not setuped!")
@@ -197,7 +195,7 @@ assert ARCHITECTURE_TYPE.upper() in GOOD_ARCHITECTURE_TYPE, f"Error, bad model a
 ####### Dataset
 dataset_type = DATASET_TYPE
 print('\n\n')
-print(f'Loading dataset: {dataset_type}')
+print(f'Loading dataset: {dataset_type}', flush=True)
 
 
 train_ds, test_ds, ds_train_size, df_test_size, ds_in_channels = select_dataset(DATASET_TYPE, GOOD_DATASET_TYPE)
@@ -236,7 +234,7 @@ model = init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_param
 
 print(f"{MODEL_TYPE} was initialized")
 PATH = os.path.join(SAVE_DIR, model_name)
-print('Save PATH:', PATH)
+print('Save PATH:', PATH, flush=True)
 #################################
 
 
@@ -244,7 +242,7 @@ print('Save PATH:', PATH)
 
 
 ######## Training
-print("Training of the model")
+print("Training of the model", flush=True)
 device = DEVICE
 
 
@@ -266,6 +264,10 @@ loss_list_test = []
 loss_test_cum = 0
 i = 0
 loss = 0
+
+#time
+epoch_time_list = []
+epoch_t1 = None
 
 
 alpha_kl = ALPHA
@@ -290,12 +292,21 @@ optimizer.zero_grad()
 torch.cuda.empty_cache()
 
 for epoch in tqdm(range(EPOCHS)):
+    
+    # time
+    epoch_t2 = timer()
+    if epoch_t1 is not None:
+        epoch_time_list += [epoch_t2 - epoch_t1]
+    epoch_t1 = epoch_t2
+    
+    
     # Forward pass: Compute predicted y by passing x to the model
         
     # Training
     model.train() # Model to train
+    epoch_t1 = timer()
     for x_batch, y_batch in dl:
-
+        
         x_batch, y_batch = x_batch.to(device), y_batch.to(device)
         
         # model forward
@@ -368,31 +379,42 @@ for epoch in tqdm(range(EPOCHS)):
             loss_test_cum = 0
           
     # backup saving  
-    if epoch%epoch_save == 0:
+    if epoch % epoch_save == 0:
         
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,
-            'loss_list_train': loss_list_train,
-            'loss_list_test': loss_list_test,
+        save_checkpoint_from(PATH + f"__backup.pth", model, optimizer,  epoch=epoch, loss=loss, 
+                    loss_list_train=loss_list_train, loss_list_test=loss_list_test,
+                    epoch_time_list=epoch_time_list)
+        
+        # torch.save({
+        #     'epoch': epoch,
+        #     'model_state_dict': model.state_dict(),
+        #     'optimizer_state_dict': optimizer.state_dict(),
+        #     'loss': loss,
+        #     'loss_list_train': loss_list_train,
+        #     'loss_list_test': loss_list_test,
+        #     'epoch_time_list': epoch_time_list,
             
-            }, PATH + f"__{epoch}.pth")
+        #     }, PATH + f"__{epoch}.pth")
         epoch_previous = epoch
             
     # backup saving  
     if epoch%epoch_save_backup == 0:
         
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,
-            'loss_list_train': loss_list_train,
-            'loss_list_test': loss_list_test,
+        save_checkpoint_from(PATH + f"__backup.pth", model, optimizer,  epoch=epoch, loss=loss, 
+                    loss_list_train=loss_list_train, loss_list_test=loss_list_test,
+                    epoch_time_list=epoch_time_list)
+        
+        
+        # torch.save({
+        #     'epoch': epoch,
+        #     'model_state_dict': model.state_dict(),
+        #     'optimizer_state_dict': optimizer.state_dict(),
+        #     'loss': loss,
+        #     'loss_list_train': loss_list_train,
+        #     'loss_list_test': loss_list_test,
+        #     'epoch_time_list': epoch_time_list,
             
-            }, PATH + f"__backup.pth")
+        #     }, PATH + f"__backup.pth")
         epoch_previous = epoch
       
     # loss printing        
@@ -411,15 +433,22 @@ for epoch in tqdm(range(EPOCHS)):
 
 
 print("Finishing of the training...")
-torch.save({
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'loss': loss,
-        'loss_list_train': loss_list_train,
-        'loss_list_test': loss_list_test,
+
+save_checkpoint_from(PATH + f"__{epoch}__end.pth", model, optimizer,  epoch=epoch, loss=loss, 
+                    loss_list_train=loss_list_train, loss_list_test=loss_list_test,
+                    epoch_time_list=epoch_time_list)
+
+
+# torch.save({
+#         'epoch': epoch,
+#         'model_state_dict': model.state_dict(),
+#         'optimizer_state_dict': optimizer.state_dict(),
+#         'loss': loss,
+#         'loss_list_train': loss_list_train,
+#         'loss_list_test': loss_list_test,
+#         'epoch_time_list': epoch_time_list,
         
-        }, PATH + f"__{epoch}__end.pth")
+#         }, PATH + f"__{epoch}__end.pth")
 
 
 #######################
@@ -427,6 +456,7 @@ torch.save({
 
 timer_end = timer()
 print(f"Elapsed time: {timer_end - timer_start:.2f} second") # Time in seconds, e.g. 5.38091952400282
+print("Mean full epoch time:", f"{np.asarray(epoch_time_list).mean().item():.1f}")
 print(f"Model training for {model_name} was successfully finished and saved!")
 print('\n\n\n\n\n')
 

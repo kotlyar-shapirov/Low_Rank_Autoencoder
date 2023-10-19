@@ -1,22 +1,25 @@
 
 
 def get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE):
+    ARCHITECTURE_TYPE = ARCHITECTURE_TYPE.upper()
+    DATASET_TYPE = DATASET_TYPE.upper() 
+    
     # (ARCHITECTURE_TYPE.upper() in ['V1'])
-    if (ARCHITECTURE_TYPE.upper() in ['V1']) and (DATASET_TYPE in ['MNIST']):
+    if (ARCHITECTURE_TYPE in ['V1']) and (DATASET_TYPE in ['MNIST']):
         from models.R1AE import ConvLRAE, ConvVAE, ConvAE
         print("models were downloaded from 'models.R1AE'")
         
-    elif (ARCHITECTURE_TYPE.upper() in ['V1']) and (DATASET_TYPE in ['CIFAR10', 'CELEBA']):
+    elif (ARCHITECTURE_TYPE in ['V1']) and (DATASET_TYPE in ['CIFAR10', 'CELEBA']):
         from models.R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
         print("models were downloaded from 'models.R1AE_CelebA'")
         
     # (ARCHITECTURE_TYPE.upper() in ['NISP'])
     
-    if (ARCHITECTURE_TYPE.upper() in ['NIPS']) and (DATASET_TYPE in ['MNIST']):
+    if (ARCHITECTURE_TYPE in ['NIPS']) and (DATASET_TYPE in ['MNIST']):
         from models.NIPS_R1AE_MNIST import ConvLRAE, ConvVAE, ConvAE
         print("models were downloaded from 'models.NIPS_R1AE_MNIST'")
         
-    elif (ARCHITECTURE_TYPE.upper() in ['NIPS']) and (DATASET_TYPE in ['CIFAR10', 'CELEBA']):
+    elif (ARCHITECTURE_TYPE in ['NIPS']) and (DATASET_TYPE in ['CIFAR10', 'CELEBA']):
         from models.NIPS_R1AE_CelebA import ConvLRAE, ConvVAE, ConvAE
         print("models were downloaded from 'models.NIPS_R1AE_CelebA'")
 
@@ -109,7 +112,9 @@ def get_base_model_V1_parameters(DATASET_TYPE):
    
     
 def  get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE):
-    if ARCHITECTURE_TYPE == 'NIPS':
+    ARCHITECTURE_TYPE = ARCHITECTURE_TYPE.upper()
+    DATASET_TYPE = DATASET_TYPE.upper()    
+    if ARCHITECTURE_TYPE.upper() == 'NIPS':
         models_params = get_base_model_NIPS_parameters(DATASET_TYPE)
     elif ARCHITECTURE_TYPE == 'V1':
         models_params = get_base_model_V1_parameters(DATASET_TYPE)

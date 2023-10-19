@@ -121,7 +121,34 @@ def init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_params, d
         
     return model
     
+  
+  
+  
+def upload_checkpoint_in(load_path, model=None, optimizer=None,  device=None):
+    checkpoint = torch.load(load_path)
     
+    if model is not None:
+        model.load_state_dict(checkpoint['model_state_dict'])
+    if (device is not None) and (model is not None):
+        model.to(device)
+        
+    if optimizer is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        
+    return checkpoint
+
+
+def save_checkpoint_from(save_path, model=None, optimizer=None, **kwargs):
+    
+    checkpoint = {}
+    if model is not None:
+        checkpoint['model_state_dict'] = model.state_dict()       
+    if optimizer is not None:
+        checkpoint['optimizer_state_dict'] = optimizer.state_dict()
+        
+    checkpoint = checkpoint | kwargs
+    torch.save(checkpoint, save_path)
+    return checkpoint
     
     
     
@@ -143,7 +170,11 @@ def plot_loss(loss_list_train, loss_list_test, save_path=None):
     # plt.yscale('log')
     plt.legend()
     
+    title = save_path if  save_path is not None else ''
+    plt.title(title)
+    
     if (save_path is not None) and (save_path != ''):
         plt.savefig(save_path)
+        
     
     

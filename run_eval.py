@@ -27,7 +27,7 @@ from models.evaluation import get_MSE_PSNR_score, calculate_FID
 
 from timeit import default_timer as timer
 
-from utils.script_utils import setup_dataset_eval, update_out_file, plot_loss, select_dataset, init_model
+from utils.script_utils import setup_dataset_eval, update_out_file, plot_loss, select_dataset, init_model, upload_checkpoint_in
 from main_utils import get_models_class_list, get_base_model_parameters, get_eval_parameters
 
 timer_start = timer() # start timer
@@ -76,7 +76,7 @@ MODEL_DIR = model_dir
 MODEL_NAME = model_name
 
 model_name_in_list = model_name.split('__')
-DATASET_TYPE = model_name_in_list[1]
+DATASET_TYPE = model_name_in_list[1].upper()
 MODEL_TYPE = model_name_in_list[2]
 OUT_FEATURES = int(model_name_in_list[3])
 ALPHA = float(model_name_in_list[4])
@@ -94,35 +94,6 @@ models_class_list = get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE)
 models_params = get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE)
 BOTTLENECK =  models_params['BOTTLENECK']  
 C_H_W = models_params['C_H_W']
-
-# if DATASET_TYPE in ['MNIST']:
-
-#     IN_FEATURES = 256*2*2
-#     BOTTLENECK = 128
-#     C_H_W = [128, 8, 8]
-#     OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
-#     DS_IN_CHANNELS = 1
-#     N_GM_COMPONENTS = 4
-
-# elif DATASET_TYPE in ['CIFAR10']:
-#     IN_FEATURES = 1024*2*2
-#     C_H_W = [1024, 8, 8]
-#     BOTTLENECK = 512
-#     OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
-#     DS_IN_CHANNELS = 3
-#     N_GM_COMPONENTS = 10
-
-    
-# elif DATASET_TYPE in ['CelebA', 'CELEBA']:
-#     IN_FEATURES = 1024*4*4
-#     C_H_W = [1024, 8, 8]
-#     BOTTLENECK = 512
-#     OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
-#     DS_IN_CHANNELS = 3
-#     N_GM_COMPONENTS = 10
-# else:
-#    print("Warning! the default run setups was not setuped!")
-   
     
     
 # other Model parameters
@@ -174,15 +145,15 @@ if DEVICE in ['cuda:0', 'cuda:1']:
 
 def print_params(param_list, param_names_list):
     for param_name, param in zip(param_names_list, param_list):
-        print(f"{param_name}: {param}")
+        print(f"{param_name}: {param}", flush=True)
     print()
     
     
     
 
 # Show input data
-print('Input script data', '\n')
-print('Main parameters:')
+print('Input script data', '\n', flush=True)
+print('Main parameters:', flush=True)
 
 
 in_param_list = [LOAD_PATH, DEVICE, MODEL_TYPE, DATASET_TYPE, ARCHITECTURE_TYPE, BOTTLENECK, MODEL_DIR, MODEL_NAME]
@@ -251,26 +222,32 @@ model = init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_param
 
 print(f"{MODEL_TYPE} was initialized")
 
+ 
+    
 
 
 
 
 ## model weights upload
+device = DEVICE
 model_path = os.path.join(model_dir, model_name + '.pth')
 PATH = load_path
 
 print('Load PATH:', PATH)
 out_path_name = os.path.join(OUT_DIR, model_name)
 
-checkpoint = torch.load(PATH)
-model.load_state_dict(checkpoint['model_state_dict'])
-# optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+checkpoint = upload_checkpoint_in(load_path, model=model, device=device)
+
 epoch = checkpoint['epoch']
 loss = checkpoint['loss']
+print("Loaded epoch:", epoch)
+print("Loaded final loss:", loss)
+
+
 loss_list_train = checkpoint['loss_list_train']
 loss_list_test = checkpoint['loss_list_test']
-print("Loaded epoch:", epoch)
-
+epoch_time_list = checkpoint['epoch_time_list'] if 'epoch_time_list' in checkpoint.keys() else None
+del checkpoint
 
 ##########################################
 
@@ -314,7 +291,16 @@ print('\n\n')
 ##### EVALUATION
 print('\n\nEvaluation:')
 out_file_path = f"{out_path_name}__metrics.txt"
-update_out_file(f'Out: {load_path}', out_file_path, rewrite=True)
+update_out_file(f'\n\nOut: {load_path}', out_file_path, rewrite=False)
+
+# epoch time
+if epoch_time_list is not None:
+    update_out_file(f'Mean epoch time: {np.asarray(epoch_time_list).mean().item():.1f}', 
+                    out_file_path, rewrite=False)
+    
+
+
+
 
 
 
@@ -323,8 +309,7 @@ save_path_str = f"{out_path_name}__loss.jpg"
 
 plot_loss(loss_list_train, loss_list_test, save_path=save_path_str)
    
-plt.close()   
-print("Figure was saved:", save_path_str)
+print("Figure was saved:", save_path_str), plt.close() 
 ##########
 
 
@@ -349,17 +334,20 @@ with torch.no_grad():
 plt.figure()
 save_path_str = f"{out_path_name}__rec_test.jpg"
 check_reconstruction(model, test_ds, device, C_H_W=C_H_W)
-
+# plt.title(save_path_str)
 plt.savefig(save_path_str), print("Figure was saved:", save_path_str), plt.close()
-# plt.savefig(save_path_str)
-# print("Figure was saved:", save_path_str)
-# plt.close()
+
 # train
 plt.figure()
+save_path_str = f"{out_path_name}__rec_train.jpg"
 check_reconstruction(model, train_ds, device, C_H_W=C_H_W)
-plt.savefig(f"{out_path_name}__rec_train.jpg")
-print("Figure was saved:", f"{out_path_name}__rec_train.jpg")
-plt.close()
+# plt.title(save_path_str)
+plt.savefig(save_path_str), print("Figure was saved:", save_path_str), plt.close()
+
+
+# plt.savefig(f"{out_path_name}__rec_train.jpg")
+# print("Figure was saved:", f"{out_path_name}__rec_train.jpg")
+# plt.close()
 #################
 
 
@@ -439,6 +427,7 @@ print(f"{dataset_names[-1]} samples = ", dataset_list[-1].shape[0])
 print('\nDisplaying generation')
 display_datasets(dataset_list, dataset_names)
 save_path_str = f"{out_path_name}__gen.jpg"
+# plt.title(save_path_str)
 plt.savefig(save_path_str), print("Figure was saved:", save_path_str), plt.close()
 #################
 

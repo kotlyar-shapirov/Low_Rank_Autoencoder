@@ -12,8 +12,13 @@ nohup python3 run_train.py -m VAE -a NIPS -D MNIST -d cuda:1 -A 0.001 -b 256
 
 
 
+# -m, -d, -b, -A 
+# -D 
+# -a
+
 test_dir_name="test_NIPS"
-nohup python3 run_train.py -m VAE -a NIPS -D MNIST -d cuda:0 -A 0.001 -b 1024 > $test_dir_name/o_MNIST_VAE_b2.out 2>&1  &
+nohup python3 run_train.py -m LRAE -a NIPS -D CELEBA -d cuda:0 -A 0.001 -b 1024 > $test_dir_name/bl_CELEBA_VAE_1024.out 2>&1  &
+# nohup python3 run_train.py -m VAE -a NIPS -D CELEBA -d cuda:0 -A 0.001 -b 1024 > $test_dir_name/bl_MNIST_VAE_1024.out 2>&1  &
 
 
 
