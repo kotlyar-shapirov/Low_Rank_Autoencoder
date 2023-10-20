@@ -5,7 +5,15 @@ def entropy_loss(factors_probability):
     loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)            
     loss_entropy_mean =  torch.mean(torch.exp(loss_entropy)) # exp of mean entropy loss
     return loss_entropy_mean
+def kl_loss_from_ready(factors_probability):
+    loss = -1*factors_probability.mean()
+    return loss
 
+def entropy_limit_loss(factors_probability):
+    factors_probability = torch.nn.Softmax(dim=-1)(factors_probability)
+    loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)            
+    loss = torch.mean(torch.exp(loss_entropy)) # entropy loss
+    return loss
 
 def wasser_loss(factors_probability):
     device = factors_probability.device

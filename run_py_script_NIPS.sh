@@ -1,24 +1,30 @@
-test_dir_name="test_NIPS"
+
+# nohup python3 run_train.py -m IRMAE -a NIPS -D CELEBA -d cuda:1 -A 0.001 -b 32 > test_NIPS/out_CELEBA_IRMAE.out 2>&1  &
+# 17878
+
+
+# test_dir_name="test_NIPS"
 
 {
-nohup python3 run_train.py -m VAE -a NIPS -D MNIST -d cuda:0 -A 0.001 -b 1024
-nohup python3 run_train.py -m VAE -a NIPS -D MNIST -d cuda:0 -A 0.001 -b 128
-} > $test_dir_name/o_MNIST_VAE_b1.out 2>&1  &
+    nohup python3 run_train.py   -m IRMAE  -a NIPS        -D MNIST    -d cuda:0   -A 0.001  -b 32   
+    nohup python3 run_train.py   -m VAE    -a NIPS        -D FMNIST   -d cuda:0   -A 0.001  -b 32
+    nohup python3 run_train.py   -m LRAE   -a NIPS        -D FMNIST   -d cuda:0   -A 0.1    -b 32
+} > test_NIPS/out_F_MNIST_IRMAE_LRAE_VAE.out 2>&1  &
 
 {
-nohup python3 run_train.py -m VAE -a NIPS -D MNIST -d cuda:1 -A 0.001 -b 512
-nohup python3 run_train.py -m VAE -a NIPS -D MNIST -d cuda:1 -A 0.001 -b 256
-} > $test_dir_name/o_MNIST_VAE_b2.out 2>&1  &
+    nohup python3 run_train.py -m IRMAE -a NIPS -D FMNIST -d cuda:3 -A 0.001 -b 32
+    nohup python3 run_train.py -m AE -a NIPS -D FMNIST -d cuda:3 -A 0.001 -b 32
+} > test_NIPS/out_FMNIST_IRMAE_AE.out 2>&1  &
 
 
 
-# -m, -d, -b, -A 
+# -m, -d, -b, -A out_file
 # -D 
 # -a
 
-test_dir_name="test_NIPS"
-nohup python3 run_train.py -m LRAE -a NIPS -D CELEBA -d cuda:0 -A 0.001 -b 1024 > $test_dir_name/bl_CELEBA_VAE_1024.out 2>&1  &
-# nohup python3 run_train.py -m VAE -a NIPS -D CELEBA -d cuda:0 -A 0.001 -b 1024 > $test_dir_name/bl_MNIST_VAE_1024.out 2>&1  &
+# test_dir_name="test_NIPS"
+# nohup python3 run_train.py -m LRAE -a NIPS -D CELEBA -d cuda:0 -A 0.001 -b 1024 > $test_dir_name/bl_CELEBA_VAE_1024.out 2>&1  &
+# # nohup python3 run_train.py -m VAE -a NIPS -D CELEBA -d cuda:0 -A 0.001 -b 1024 > $test_dir_name/bl_MNIST_VAE_1024.out 2>&1  &
 
 
 nohup python3 run_train_wasser.py -m LRAE -a NIPS -D MNIST -d cuda:0 -A 0.001 -L wasserstein -b 1024 > wasser_test/bl_MNIST_LRAE_1024.out 2>&1  &
