@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 
 
 def select_dataset(DATASET_TYPE, GOOD_DATASET_TYPE): 
-    if DATASET_TYPE.upper() in ['MNIST']:
+    
+    DATASET_TYPE = DATASET_TYPE.upper()
+    if DATASET_TYPE in ['MNIST']:
         train_ds = torchvision.datasets.MNIST('./files/', train=True, download=True,
                                     transform=torchvision.transforms.Compose([
                                         transforms.Resize(32),
@@ -22,8 +24,22 @@ def select_dataset(DATASET_TYPE, GOOD_DATASET_TYPE):
         ds_train_size, df_test_size = 60000, 10000
         ds_in_channels = 1
         
+    elif DATASET_TYPE in ['FMNIST', 'FASHIONMNIST']:
+        train_ds = torchvision.datasets.FashionMNIST('./files/', train=True, download=True,
+                                    transform=torchvision.transforms.Compose([
+                                        transforms.Resize(32),
+                                        torchvision.transforms.ToTensor(),
+                                    ]))
+        test_ds = torchvision.datasets.FashionMNIST('./files/', train=False, download=True,
+                                    transform=torchvision.transforms.Compose([
+                                        transforms.Resize(32),
+                                        torchvision.transforms.ToTensor(),
+                                    ]))
+        ds_train_size, df_test_size = 60000, 10000
+        ds_in_channels = 1
         
-    elif DATASET_TYPE.upper() in ['CIFAR10']:
+        
+    elif DATASET_TYPE in ['CIFAR10']:
         train_ds = torchvision.datasets.CIFAR10('./files/', train=True, download=True,
                                     transform=torchvision.transforms.Compose([
                                         transforms.Resize(32),
@@ -36,8 +52,8 @@ def select_dataset(DATASET_TYPE, GOOD_DATASET_TYPE):
                                     ]))
         ds_train_size, df_test_size = 50000, 10000
         ds_in_channels = 3
-        
-    elif DATASET_TYPE.upper() in ['CELEBA']:
+            
+    elif DATASET_TYPE in ['CELEBA']:
         train_ds = torchvision.datasets.CelebA('./files/', split='train', target_type ='attr', download=True,
                                     transform=torchvision.transforms.Compose([
                                         transforms.CenterCrop(148),
@@ -91,8 +107,6 @@ def setup_dataset_eval(train_ds, test_ds, ds_train_size, df_test_size,  num_work
 
 
 
-
-
 def init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_params, device):
     
     IN_FEATURES = models_params['IN_FEATURES']
@@ -104,10 +118,11 @@ def init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_params, d
     DROPOUT = models_params['DROPOUT']
     SAMPLING = models_params['SAMPLING']
     TEMP = models_params['TEMP']
+    MIDDLE_MATRIXES = models_params['MIDDLE_MATRIXES']
     
     
     ### need to update for V1
-    ConvAE, ConvVAE, ConvLRAE = models_class_list
+    ConvLRAE, ConvAE, ConvVAE, ConvIRMAE = models_class_list
     if MODEL_TYPE == 'LRAE':
         GRID = torch.arange(1,N_BINS+1).to(device)/N_BINS
         model = ConvLRAE(IN_FEATURES, BOTTLENECK, OUT_FEATURES, N_BINS, GRID, dropout=DROPOUT, nonlinearity=NONLINEARITY,
@@ -116,6 +131,8 @@ def init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_params, d
         model = ConvVAE(IN_FEATURES, BOTTLENECK, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
     elif MODEL_TYPE == 'AE':
         model = ConvAE(IN_FEATURES, BOTTLENECK, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels).to(device)
+    elif MODEL_TYPE == 'IRMAE':
+        model = ConvIRMAE(IN_FEATURES, BOTTLENECK, OUT_FEATURES, nonlinearity=NONLINEARITY, in_channels=ds_in_channels, middle_matrixes=MIDDLE_MATRIXES).to(device)
     else:
         assert False, f"Error, bad model type, select from: {GOOD_MODEL_TYPE}"
         
@@ -142,7 +159,7 @@ def save_checkpoint_from(save_path, model=None, optimizer=None, **kwargs):
     
     checkpoint = {}
     if model is not None:
-        checkpoint['model_state_dict'] = model.state_dict()       
+        checkpoint['model_state_dict'] = model.state_dict()     
     if optimizer is not None:
         checkpoint['optimizer_state_dict'] = optimizer.state_dict()
         
@@ -170,8 +187,8 @@ def plot_loss(loss_list_train, loss_list_test, save_path=None):
     # plt.yscale('log')
     plt.legend()
     
-    title = save_path if  save_path is not None else ''
-    plt.title(title)
+    # title = save_path if  save_path is not None else ''
+    # plt.title(title)
     
     if (save_path is not None) and (save_path != ''):
         plt.savefig(save_path)

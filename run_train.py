@@ -16,7 +16,7 @@ import argparse
 
 
 from utils.script_utils import select_dataset, init_model, setup_dataset_training, save_checkpoint_from
-from utils.loss import wasser_loss
+from utils.loss import wasser_loss, entropy_limit_loss, kl_loss_from_ready
 from main_utils import get_models_class_list, get_base_model_parameters
 
 
@@ -25,8 +25,8 @@ timer_start = timer() # start timer
 
 torch.manual_seed(0)
 # Defaults
-GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10', 'CELEBA']
-GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE']
+GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10', 'CELEBA', 'FMNIST', 'FASHIONMNIST']
+GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE', 'IRMAE']
 GOOD_ARCHITECTURE_TYPE = ['V1', 'NIPS']
 
 
@@ -64,13 +64,15 @@ DATASET_TYPE = args.dataset
 ALPHA = float(args.alpha)
 BATCH_SIZE = int(args.batch_size)
 
-EPOCHS = 201
+EPOCHS = 101
+# EPOCHS = 51
 LEARNING_RATE = 1e-4
 
 #### setup runs
 print("Setup runs")
-if DATASET_TYPE.upper() in ['MNIST']:
-    MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
+if DATASET_TYPE.upper() in ['MNIST', 'FMNIST', 'FASHIONMNIST']:
+    # MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
+    MODEL_NAME_PREF = f'test_NIPS__'
     SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE.upper() in ['CIFAR10']:
@@ -78,7 +80,7 @@ elif DATASET_TYPE.upper() in ['CIFAR10']:
     SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE.upper() in ['CELEBA']: 
-    MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
+    MODEL_NAME_PREF = f'test_NIPS__'
     SAVE_DIR = 'test_NIPS'
 else:
    print("Warning! the default run setups was not setuped!")
@@ -102,7 +104,8 @@ models_class_list = get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE)
 # setup model parameters
 
 models_params = get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE)
-BOTTLENECK =  models_params['BOTTLENECK']      
+BOTTLENECK =  models_params['BOTTLENECK']
+C_H_W = models_params['C_H_W']
    
 # other Model parameters
 NONLINEARITY = nn.ReLU()
@@ -123,9 +126,36 @@ TEST_SIZE = -1
 # EPOCH_SAVE = 50 # save and remain
 EPOCH_SAVE = 25 # save and remain
 
+
 EPOCH_SAVE_BACKUP = 5 # save and rewrite 
 SHOW_LOSS_BACKUP = 5 # save and rewrite 
 
+
+
+
+### setup main loss
+if MODEL_TYPE in ['VAE', 'LRAE']:
+    main_loss = torch.nn.functional.binary_cross_entropy
+    main_loss_str = 'torch.nn.functional.binary_cross_entropy'
+else: # AE
+    main_loss = torch.nn.functional.mse_loss
+    main_loss_str = 'torch.nn.functional.mse_loss'
+    
+print(f"'{main_loss_str}'\t will be used as main_loss") 
+##########################   
+
+### setup additional loss
+if MODEL_TYPE.upper() in ['VAE']:
+    additional_loss, add_loss_str = kl_loss_from_ready, 'kl_loss_from_ready'
+elif  MODEL_TYPE.upper() in ['LRAE']:
+    # additional_loss, add_loss_str = wasser_loss, 'wasser_loss'
+    additional_loss, add_loss_str= entropy_limit_loss, 'entropy_limit_loss'
+else: # LRAE
+    additional_loss, add_loss_str = None, 'None' 
+   
+
+print(f"'{add_loss_str}'\t will be used as additional_loss")
+##########################
 
 
 
@@ -232,6 +262,8 @@ print("model_name: ", model_name, '\n\n' )
 
 model = init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_params, device)
 
+print(model)
+
 print(f"{MODEL_TYPE} was initialized")
 PATH = os.path.join(SAVE_DIR, model_name)
 print('Save PATH:', PATH, flush=True)
@@ -247,7 +279,7 @@ device = DEVICE
 
 
 # setup training
-criterion = nn.MSELoss()
+# criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 
@@ -269,9 +301,9 @@ loss = 0
 epoch_time_list = []
 epoch_t1 = None
 
-
-alpha_kl = ALPHA
-alpha_entropy = ALPHA
+alpha = ALPHA
+# alpha_kl = ALPHA
+# alpha_entropy = ALPHA
 # if MODEL_TYPE == 'LRAE':
 #     alpha_entropy *= (OUT_FEATURES/8)**0.5
 #     print(f"Alpha update = {(OUT_FEATURES/8)**0.5: .3f}")
@@ -321,33 +353,29 @@ for epoch in tqdm(range(EPOCHS)):
         # print(B, C, H, W )
         
         # 2d upsampling
-        if DATASET_TYPE in ['MNIST']:
-            C, H, W = C//2, H*4, W*4
-        elif DATASET_TYPE in ['CELEBA', 'CelebA', 'CIFAR10']:
-            C, H, W = C, H*2, W*2
-        else:
-            assert 0, f'Error, Bad DATASET_TYPE={DATASET_TYPE}, should be in {GOOD_DATASET_TYPE}'
+               
         
-        # print(B, C, H, W )
+        # if DATASET_TYPE in ['MNIST']:
+        #     C, H, W = C//2, H*4, W*4
+        # elif DATASET_TYPE in ['CELEBA', 'CelebA', 'CIFAR10']:
+        #     C, H, W = C, H*2, W*2
+        # else:
+        #     assert 0, f'Error, Bad DATASET_TYPE={DATASET_TYPE}, should be in {GOOD_DATASET_TYPE}'
+   
+        C, H, W = C_H_W
         decoded_2d_small = decoded_1d.view(B, C, H, W)
         decoded_2d = model.up(decoded_2d_small)
         
+
+        
+        
         # loss
-        loss = criterion(decoded_2d.view(-1), x_batch.view(-1)) 
-        if MODEL_TYPE == 'VAE':
-            loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
-            loss -= alpha_kl*factors_probability.mean()  # KL loss
-            
-        if MODEL_TYPE == 'LRAE':
-            loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
-            # loss += alpha_entropy*wasser_loss(factors_probability)
-            factors_probability = nn.Softmax(dim=-1)(factors_probability)
-            loss_entropy = torch.sum(torch.log(factors_probability+1e-9)*factors_probability,dim=-1)            
-            loss += alpha_entropy*torch.mean(torch.exp(loss_entropy)) # entropy loss
-            
-            
-          
-            
+        loss = main_loss(decoded_2d, x_batch)
+        # loss = main_loss(decoded_2d.view(-1), x_batch.view(-1))
+        if additional_loss is not None:
+            loss += alpha*additional_loss(factors_probability)
+        
+
             
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
@@ -369,7 +397,7 @@ for epoch in tqdm(range(EPOCHS)):
                     x_batch, y_batch = x_batch.to(device), y_batch.to(device)
                     x_decoded = model(x_batch)
 
-                    loss_test = criterion(x_decoded.view(-1), x_batch.view(-1))
+                    loss_test = main_loss(x_decoded, x_batch)
                     loss_test_cum += loss_test.item()
                     
             assert torch.isnan(x_decoded).sum() == 0, f"Error! Nan values ({torch.isnan(x_decoded).sum()}) in models output"
@@ -381,20 +409,11 @@ for epoch in tqdm(range(EPOCHS)):
     # backup saving  
     if epoch % epoch_save == 0:
         
-        save_checkpoint_from(PATH + f"__backup.pth", model, optimizer,  epoch=epoch, loss=loss, 
+        save_checkpoint_from(PATH + f"__{epoch}.pth", model, optimizer,  epoch=epoch, loss=loss.item(), 
                     loss_list_train=loss_list_train, loss_list_test=loss_list_test,
                     epoch_time_list=epoch_time_list)
         
-        # torch.save({
-        #     'epoch': epoch,
-        #     'model_state_dict': model.state_dict(),
-        #     'optimizer_state_dict': optimizer.state_dict(),
-        #     'loss': loss,
-        #     'loss_list_train': loss_list_train,
-        #     'loss_list_test': loss_list_test,
-        #     'epoch_time_list': epoch_time_list,
-            
-        #     }, PATH + f"__{epoch}.pth")
+
         epoch_previous = epoch
             
     # backup saving  
@@ -405,16 +424,7 @@ for epoch in tqdm(range(EPOCHS)):
                     epoch_time_list=epoch_time_list)
         
         
-        # torch.save({
-        #     'epoch': epoch,
-        #     'model_state_dict': model.state_dict(),
-        #     'optimizer_state_dict': optimizer.state_dict(),
-        #     'loss': loss,
-        #     'loss_list_train': loss_list_train,
-        #     'loss_list_test': loss_list_test,
-        #     'epoch_time_list': epoch_time_list,
-            
-        #     }, PATH + f"__backup.pth")
+  
         epoch_previous = epoch
       
     # loss printing        
@@ -439,16 +449,7 @@ save_checkpoint_from(PATH + f"__{epoch}__end.pth", model, optimizer,  epoch=epoc
                     epoch_time_list=epoch_time_list)
 
 
-# torch.save({
-#         'epoch': epoch,
-#         'model_state_dict': model.state_dict(),
-#         'optimizer_state_dict': optimizer.state_dict(),
-#         'loss': loss,
-#         'loss_list_train': loss_list_train,
-#         'loss_list_test': loss_list_test,
-#         'epoch_time_list': epoch_time_list,
-        
-#         }, PATH + f"__{epoch}__end.pth")
+
 
 
 #######################
