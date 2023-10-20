@@ -13,24 +13,66 @@
 # - a - constant 
 
 
-ALPHA=0.00057
-ALPHA1=0.0032
 {
-    for EPOCH in 25 50 75 100 125 150 175 200
-        do
-            nohup python3 run_eval.py        -l test_NIPS/data_b/test_bl_NIPS_1024_${ALPHA}__MNIST__VAE__128__0.001__${EPOCH}.pth \
-                            -o eval_NIPS/data_b -d cuda:2 -a NIPS
-        done
-} > eval_NIPS/o_bl_${ALPHA}_VAE_200.out 2>&1 &
+    nohup python3 run_eval.py -l test_NIPS/test_bl_NIPS_1024_n2__MNIST__VAE__128__0.001__50.pth \
+                        -o eval_NIPS/ -d cuda:3 -a NIPS
+    nohup python3 run_eval.py -l test_NIPS/test_bl_NIPS_1024_n3__MNIST__VAE__128__0.001__50.pth \
+                        -o eval_NIPS/ -d cuda:3 -a NIPS
+} > check_train.out  2>&1     &
 
 
-{
-    for EPOCH in 25 50 75 100 125 150 175 200
-        do
-            nohup python3 run_eval.py        -l test_NIPS/data_b/test_bl_NIPS_1024_${ALPHA1}__MNIST__VAE__128__0.001__${EPOCH}.pth \
-                            -o eval_NIPS/data_b -d cuda:3 -a NIPS
-        done
-} > eval_NIPS/o_bl_${ALPHA1}_VAE_200.out 2>&1 &
+# python3 run_train.py -m VAE -A 0.001 -b 1024 -d cuda:0 
+
+# echo "run nohup!!!!!!!!!!!!!!!"
+
+# nohup python3 run_eval.py        -l test_NIPS/test_bl_NIPS_512_0.0001__CELEBA__VAE__512__0.001__50.pth \
+#                         -o eval_NIPS/data_b -d cuda:0 -a NIPS > eval_NIPS/bl_CELEBA_0.0001_VAE_e50.out 2>&1
+
+# {
+# for EPOCH in 50
+#     do
+#         nohup python3 run_eval.py        -l test_NIPS/test_bl_NIPS_512_0.0001__CELEBA__VAE__512__0.001__${EPOCH}.pth \
+#                         -o eval_NIPS/data_b -d cuda:0 -a NIPS 
+#     done
+# } > eval_NIPS/bl_CELEBA_0.0001_VAE_e50_75_100.out 2>&1      &
+
+
+
+
+# {
+# for EPOCH in 25 125
+#     do
+#         nohup python3 run_eval.py        -l test_NIPS/test_bl_NIPS_512_0.0001__CELEBA__VAE__512__0.001__${EPOCH}.pth \
+#                         -o eval_NIPS/data_b -d cuda:2 -a NIPS
+#     done
+# } > eval_NIPS/bl_CELEBA_0.0001_VAE_e25_125.out 2>&1     &
+
+# {
+# for EPOCH in 200 0
+#     do
+#         nohup python3 run_eval.py        -l test_NIPS/test_bl_NIPS_512_0.0001__CELEBA__VAE__512__0.001__${EPOCH}.pth \
+#                         -o eval_NIPS/data_b -d cuda:3 -a NIPS
+#     done
+# } > eval_NIPS/bl_CELEBA_0.0001_VAE_e200_0.out 2>&1      &
+
+# ALPHA=0.00057
+# ALPHA1=0.0032
+# {
+#     for EPOCH in 25 50 75 100 125 150 175 200
+#         do
+#             nohup python3 run_eval.py        -l test_NIPS/test_bl_NIPS_512_0.0001__CELEBA__VAE__128__0.001__${EPOCH}.pth \
+#                             -o eval_NIPS/data_b -d cuda:2 -a NIPS > eval_NIPS/bl_0.0001_VAE_e${EPOCH}.out 2>&1 &
+#         done
+# } 
+
+
+# {
+#     for EPOCH in 25 50 75 100 125 150 175 200
+#         do
+#             nohup python3 run_eval.py        -l test_NIPS/data_b/test_bl_NIPS_1024_${ALPHA1}__MNIST__VAE__128__0.001__${EPOCH}.pth \
+#                             -o eval_NIPS/data_b -d cuda:3 -a NIPS
+#         done
+# } > eval_NIPS/o_bl_${ALPHA1}_VAE_200.out 2>&1 &
 
 
 

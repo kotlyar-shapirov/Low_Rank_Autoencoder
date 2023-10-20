@@ -33,8 +33,8 @@ from main_utils import get_models_class_list, get_base_model_parameters, get_eva
 timer_start = timer() # start timer
 
 #default
-GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10', 'CELEBA']
-GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE']
+GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10', 'CELEBA', 'FMNIST', 'FASHIONMNIST']
+GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE', 'IRMAE']
 GOOD_ARCHITECTURE_TYPE = ['V1', 'NISP']
 
 
@@ -133,12 +133,17 @@ TEST_BATCH_SIZE_BIG = 512
 TEST_BATCH_SIZE_SMALL = 128
 
 if DEVICE in ['cuda:2', 'cuda:3', 'cuda:4']:
-    TEST_BATCH_SIZE_BIG = 512
+    TEST_BATCH_SIZE_BIG = 256
     TEST_BATCH_SIZE_SMALL = 128
 
 if DEVICE in ['cuda:0', 'cuda:1']:
-    TEST_BATCH_SIZE_BIG = 1024
+    TEST_BATCH_SIZE_BIG = 512
     TEST_BATCH_SIZE_SMALL = 512
+    
+if TEST_BATCH_SIZE_BIG == 1024 and DATASET_TYPE.upper() in ['CELEBA', 'CIFAR10', 'CIFAR']:
+    TEST_BATCH_SIZE_BIG = 512
+    
+
 
 
 
@@ -197,8 +202,8 @@ print()
 
 
 # Service parameters
-GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10', 'CelebA', 'CELEBA']
-GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE']
+# GOOD_DATASET_TYPE = ['MNIST', 'CIFAR10', 'CelebA', 'CELEBA']
+# GOOD_MODEL_TYPE = ['VAE', 'AE', 'LRAE']
 
 # Checking parameters
 assert MODEL_TYPE in GOOD_MODEL_TYPE, f"Error, bad model type, select from: {GOOD_MODEL_TYPE}"
@@ -238,10 +243,9 @@ out_path_name = os.path.join(OUT_DIR, model_name)
 
 checkpoint = upload_checkpoint_in(load_path, model=model, device=device)
 
-epoch = checkpoint['epoch']
-loss = checkpoint['loss']
-print("Loaded epoch:", epoch)
-print("Loaded final loss:", loss)
+
+print("Loaded epoch:", checkpoint['epoch'])
+print("Loaded final loss:", checkpoint['loss'])
 
 
 loss_list_train = checkpoint['loss_list_train']
@@ -308,7 +312,7 @@ if epoch_time_list is not None:
 save_path_str = f"{out_path_name}__loss.jpg"
 
 plot_loss(loss_list_train, loss_list_test, save_path=save_path_str)
-   
+plt.title(model_name) 
 print("Figure was saved:", save_path_str), plt.close() 
 ##########
 

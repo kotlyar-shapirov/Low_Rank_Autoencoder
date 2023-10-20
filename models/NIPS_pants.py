@@ -165,3 +165,51 @@ class InternalAutoencoder(nn.Module):
 
 
 ######################################
+
+
+
+# IRMAE PANTS 
+class PantsIRMAE(nn.Module):
+    def __init__(self, in_features, bottleneck_features, nonlinearity, middle_matrixes=0):
+        super().__init__()
+        self.in_features = in_features
+        self.bottleneck_features = bottleneck_features
+        self.out = nn.Sequential(nn.Linear(in_features, bottleneck_features),
+                                     nonlinearity,)
+        
+        
+        self.middle_matrixes = middle_matrixes
+        if middle_matrixes < 1:
+            self.middle = nn.Identity()
+        else:
+            self.middle = nn.Sequential()
+            for i in range(middle_matrixes):
+                self.middle.append(nn.Linear(bottleneck_features, bottleneck_features))
+    
+        
+    def forward(self,x):
+        encoded = self.out(x)
+        encoded = self.middle(encoded)
+        return encoded, None
+    
+    
+# IRMAE PANTS  with reconstructing back to original dimension
+class InternalIRMAutoencoder(nn.Module):
+    def __init__(self, in_features, bottleneck_features, out_features, nonlinearity, middle_matrixes=1):
+        super().__init__() 
+        
+        # low rank probabilites
+        self.low_rank_pants = PantsIRMAE(in_features, bottleneck_features, nonlinearity, middle_matrixes=middle_matrixes)
+        
+        # intermediate_decoder
+        self.decoder = nn.Sequential(nn.Linear(bottleneck_features, out_features),
+                                     nonlinearity,)
+        
+
+    def forward(self, x):        
+        encoded, _ = self.low_rank_pants(x)  # from flatten
+        decoded = self.decoder(encoded)  # to flatten dim
+        return decoded
+
+
+######################################
