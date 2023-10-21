@@ -65,7 +65,7 @@ DATASET_TYPE = args.dataset
 
 ALPHA = float(args.alpha)
 DISTRIBUTION_LOSS = args.dist_loss
-assert DISTRIBUTION_LOSS in ['entropy', 'wasserstein'], f'Choose dist loss from: entropy, wasserstein'
+assert DISTRIBUTION_LOSS in ['entropy', 'wasser'], f'Choose dist loss from: entropy, wasser'
 BATCH_SIZE = int(args.batch_size)
 
 EPOCHS = 201
@@ -346,7 +346,7 @@ for epoch in tqdm(range(EPOCHS)):
             loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
             if DISTRIBUTION_LOSS == 'entropy':
                 loss += alpha_entropy*entropy_loss(factors_probability)
-            elif DISTRIBUTION_LOSS == 'wasserstein':
+            elif DISTRIBUTION_LOSS == 'wasser':
                 loss += alpha_entropy*wasser_loss(factors_probability)
                       
             
@@ -387,7 +387,7 @@ for epoch in tqdm(range(EPOCHS)):
     # backup saving  
     if epoch % epoch_save == 0:
         
-        save_checkpoint_from(PATH + f"__backup.pth", model, optimizer,  epoch=epoch, loss=loss, 
+        save_checkpoint_from(PATH + f"__backup__{epoch}.pth", model, optimizer,  epoch=epoch, loss=loss, 
                     loss_list_train=loss_list_train, loss_list_test=loss_list_test,
                     epoch_time_list=epoch_time_list)
         
