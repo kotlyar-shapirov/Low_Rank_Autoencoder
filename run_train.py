@@ -45,6 +45,12 @@ parser.add_argument('-A', '--alpha', type=str, default=0.1,
                     help=f'alpha coeff')
 parser.add_argument('-b', '--batch_size', type=str, default=32,  
                     help=f'Batch size')
+parser.add_argument('-n', '--n_latent', type=str, default='-1',  
+                    help=f'number of latent dimension or bottleneck, default: '\
+                        '-1 mean that as was selected in other place')
+
+parser.add_argument('--n_bins', type=str, default='20',  
+                    help=f'number of bins for LRAE')
 
 parser.add_argument('-d', '--device', type=str, default='cuda:1', 
                     help=f'torch device name. E.g.: cpu, cuda:0, cuda:1')
@@ -68,19 +74,24 @@ EPOCHS = 101
 # EPOCHS = 51
 LEARNING_RATE = 1e-4
 
+N_LATENT = int(args.n_latent)
+
+# for LRAE
+N_BINS = int(args.n_bins)
+
 #### setup runs
 print("Setup runs")
 if DATASET_TYPE.upper() in ['MNIST', 'FMNIST', 'FASHIONMNIST']:
     # MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
     MODEL_NAME_PREF = f'test_NIPS__'
-    SAVE_DIR = 'test_NIPS'
+    SAVE_DIR = 'test_NIPS/data_n'
     
 elif DATASET_TYPE.upper() in ['CIFAR10']:
     MODEL_NAME_PREF = 'test_NIPS__'
     SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE.upper() in ['CELEBA']: 
-    MODEL_NAME_PREF = f'test_NIPS__'
+    MODEL_NAME_PREF = f'test1_NIPS__'
     SAVE_DIR = 'test_NIPS'
 else:
    print("Warning! the default run setups was not setuped!")
@@ -102,10 +113,15 @@ models_class_list = get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE)
 ### Model parameters
 
 # setup model parameters
-
 models_params = get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE)
+#setup some parameters!!
+if N_LATENT != -1:
+    models_params['BOTTLENECK'] = N_LATENT
+###########
+
 BOTTLENECK =  models_params['BOTTLENECK']
 C_H_W = models_params['C_H_W']
+
    
 # other Model parameters
 NONLINEARITY = nn.ReLU()
@@ -114,7 +130,9 @@ models_params['NONLINEARITY'] = nn.ReLU()
 
 
 # LRAE parameters
-N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+# N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+DROPOUT, TEMP, SAMPLING = 0.0, 0.5, 'gumbell'
+
 models_params = models_params | {'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
 ##
 
@@ -353,15 +371,6 @@ for epoch in tqdm(range(EPOCHS)):
         # print(B, C, H, W )
         
         # 2d upsampling
-               
-        
-        # if DATASET_TYPE in ['MNIST']:
-        #     C, H, W = C//2, H*4, W*4
-        # elif DATASET_TYPE in ['CELEBA', 'CelebA', 'CIFAR10']:
-        #     C, H, W = C, H*2, W*2
-        # else:
-        #     assert 0, f'Error, Bad DATASET_TYPE={DATASET_TYPE}, should be in {GOOD_DATASET_TYPE}'
-   
         C, H, W = C_H_W
         decoded_2d_small = decoded_1d.view(B, C, H, W)
         decoded_2d = model.up(decoded_2d_small)

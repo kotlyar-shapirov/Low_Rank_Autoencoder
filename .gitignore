@@ -18,3 +18,12 @@ __pycache__/
 # file types
 *.code-workspace
 *.out
+
+
+# some special files
+Low_rank_autoencoder_Sergei_tests__v1.ipynb
+_run_py_script.sh
+run_eval__.py
+run_train_.py
+script.py
+script_2.py

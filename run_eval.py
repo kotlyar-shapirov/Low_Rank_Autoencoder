@@ -49,6 +49,11 @@ parser.add_argument('-o', '--out', type=str, default='evaluation', help='Output 
 parser.add_argument('-d', '--device', type=str, default='cuda:1', help='torch device name. E.g.: cpu, cuda:0, cuda:1')
 parser.add_argument('-a', '--architecture', type=str, default='NIPS',  
                     help=f'model architecture type: {GOOD_ARCHITECTURE_TYPE}')
+
+parser.add_argument('--out_file', type=str, default=None,  
+                    help=f"Out_file name for metrics, default 'auto'")
+
+
 args = parser.parse_args()
 
 
@@ -62,9 +67,13 @@ DEVICE = args.device
 LOAD_PATH = args.load_path
 OUT_DIR = args.out if str(-1) != args.out else os.path.dirname(LOAD_PATH)
 
+OUT_FILE_NAME = args.out_file
+# print('OUT_FILE_NAME:', 'is None' if OUT_FILE_NAME is None else OUT_FILE_NAME)
+
+
+
+
 ARCHITECTURE_TYPE = args.architecture
-
-
 
 
 
@@ -75,10 +84,13 @@ model_dir = os.path.dirname(load_path)
 MODEL_DIR = model_dir
 MODEL_NAME = model_name
 
+
+
+
 model_name_in_list = model_name.split('__')
 DATASET_TYPE = model_name_in_list[1].upper()
 MODEL_TYPE = model_name_in_list[2]
-OUT_FEATURES = int(model_name_in_list[3])
+BOTTLENECK = int(model_name_in_list[3])
 ALPHA = float(model_name_in_list[4])
 EPOCHS = model_name_in_list[5]
 
@@ -92,7 +104,11 @@ models_class_list = get_models_class_list(DATASET_TYPE, ARCHITECTURE_TYPE)
 
 
 models_params = get_base_model_parameters(DATASET_TYPE, ARCHITECTURE_TYPE)
-BOTTLENECK =  models_params['BOTTLENECK']  
+if models_params['BOTTLENECK'] != BOTTLENECK:
+    print(f"Attention! models_params['BOTTLENECK']={models_params['BOTTLENECK']} --> {BOTTLENECK}"  )
+    print(f"The BOTTLENECK={BOTTLENECK} from  the model_name={model_name} has priority!")
+models_params['BOTTLENECK'] = BOTTLENECK
+  
 C_H_W = models_params['C_H_W']
     
     
@@ -161,8 +177,8 @@ print('Input script data', '\n', flush=True)
 print('Main parameters:', flush=True)
 
 
-in_param_list = [LOAD_PATH, DEVICE, MODEL_TYPE, DATASET_TYPE, ARCHITECTURE_TYPE, BOTTLENECK, MODEL_DIR, MODEL_NAME]
-in_param__names_list = ['LOAD_PATH', 'DEVICE', 'MODEL_TYPE', 'DATASET_TYPE', 'ARCHITECTURE_TYPE', 'BOTTLENECK', 'MODEL_DIR', 'MODEL_NAME']
+in_param_list = [LOAD_PATH, DEVICE, MODEL_TYPE, DATASET_TYPE, ARCHITECTURE_TYPE, BOTTLENECK, MODEL_DIR, MODEL_NAME, OUT_FILE_NAME]
+in_param__names_list = ['LOAD_PATH', 'DEVICE', 'MODEL_TYPE', 'DATASET_TYPE', 'ARCHITECTURE_TYPE', 'BOTTLENECK', 'MODEL_DIR', 'MODEL_NAME', 'OUT_FILE_NAME']
 print_params(in_param_list, in_param__names_list)
 print()
 print()
@@ -292,9 +308,18 @@ print('\n\n')
 
 
 
+
+
+
+
 ##### EVALUATION
 print('\n\nEvaluation:')
-out_file_path = f"{out_path_name}__metrics.txt"
+
+if OUT_FILE_NAME is None or OUT_FILE_NAME == '':
+    out_file_path = f"{out_path_name}__metrics.txt"
+else:
+    out_file_path = os.path.join(OUT_DIR, OUT_FILE_NAME)
+    
 update_out_file(f'\n\nOut: {load_path}', out_file_path, rewrite=False)
 
 # epoch time
@@ -311,9 +336,9 @@ if epoch_time_list is not None:
 ## Loss function
 save_path_str = f"{out_path_name}__loss.jpg"
 
-plot_loss(loss_list_train, loss_list_test, save_path=save_path_str)
+plot_loss(loss_list_train, loss_list_test)
 plt.title(model_name) 
-print("Figure was saved:", save_path_str), plt.close() 
+plt.savefig(save_path_str), print("Figure was saved:", save_path_str), plt.close() 
 ##########
 
 
