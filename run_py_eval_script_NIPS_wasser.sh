@@ -13,13 +13,21 @@
 # - a - constant 
 
 
+# {
+#     for EPOCH in 25 50 75 100 125 150 175 200
+#         do
+#             nohup python3 run_eval.py        -l test_NIPS/test_bl_NIPS_1024_0.0008__MNIST__LRAE__128__0.001__backup__${EPOCH}.pth \
+#                             -o eval_NIPS -d cuda:2 -a NIPS
+#         done
+# } > eval_NIPS/o_bl__LRAE_25-200.out 2>&1 &
+
 {
     for EPOCH in 25 50 75 100 125 150 175 200
         do
-            nohup python3 run_eval.py        -l test_NIPS/test_bl_NIPS_1024_0.0001__MNIST__LRAE__128__0.001__backup__${EPOCH}.pth \
-                            -o eval_NIPS -d cuda:2 -a NIPS
+            nohup python3 run_eval.py        -l test_NIPS/test_NIPS__FMNIST__VAE__128__0.001__${EPOCH}.pth \
+                            -o eval_FMNIST -d cuda:1 -a NIPS
         done
-} > eval_NIPS/o_bl__LRAE_25-200.out 2>&1 &
+} > eval_FMNIST/FMNIST_VAE_25-200.out 2>&1 &
 
 
 # {

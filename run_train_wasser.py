@@ -69,7 +69,7 @@ assert DISTRIBUTION_LOSS in ['entropy', 'wasser'], f'Choose dist loss from: entr
 BATCH_SIZE = int(args.batch_size)
 
 EPOCHS = 201
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 8*1e-4
 
 #### setup runs
 print("Setup runs")

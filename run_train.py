@@ -64,7 +64,7 @@ DATASET_TYPE = args.dataset
 ALPHA = float(args.alpha)
 BATCH_SIZE = int(args.batch_size)
 
-EPOCHS = 101
+EPOCHS = 201
 # EPOCHS = 51
 LEARNING_RATE = 1e-4
 
