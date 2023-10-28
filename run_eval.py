@@ -50,6 +50,14 @@ parser.add_argument('-d', '--device', type=str, default='cuda:1', help='torch de
 parser.add_argument('-a', '--architecture', type=str, default='NIPS',  
                     help=f'model architecture type: {GOOD_ARCHITECTURE_TYPE}')
 
+
+
+parser.add_argument('--n_bins', type=str, default='20',  
+                    help=f'number of bins for LRAE')
+
+parser.add_argument('--gumbel_temp', type=str, default='0.5',  
+                    help=f'Temperature of gumbel softmax')
+
 parser.add_argument('--out_file', type=str, default=None,  
                     help=f"Out_file name for metrics, default 'auto'")
 
@@ -69,6 +77,10 @@ OUT_DIR = args.out if str(-1) != args.out else os.path.dirname(LOAD_PATH)
 
 OUT_FILE_NAME = args.out_file
 # print('OUT_FILE_NAME:', 'is None' if OUT_FILE_NAME is None else OUT_FILE_NAME)
+
+# for LRAE
+N_BINS = int(args.n_bins)
+TEMP=  float(args.gumbel_temp)
 
 
 
@@ -118,7 +130,8 @@ models_params['NONLINEARITY'] = nn.ReLU()
 ###
 
 # LRAE parameters
-N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+# N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+DROPOUT,SAMPLING = 0.0, 'gumbell'
 models_params = models_params | {'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
 ##
 
@@ -168,9 +181,22 @@ def print_params(param_list, param_names_list):
     for param_name, param in zip(param_names_list, param_list):
         print(f"{param_name}: {param}", flush=True)
     print()
-    
-    
-    
+ 
+ 
+ 
+#### backup work 
+BACKUP_DIR = os.path.join('files', 'dataset_checkpoints')   
+print('BACKUP_DIR:', BACKUP_DIR)
+checkpoint_test_dataset_path, checkpoint_train_dataset_path = None, None # initialization
+
+###########
+if not os.path.isdir(BACKUP_DIR):
+    os.mkdir(BACKUP_DIR)
+    print(f"BACKUP_DIR: {BACKUP_DIR} was created!")
+
+checkpoint_test_dataset_path = os.path.join(BACKUP_DIR, f"FID_real_ckeckpoint__{DATASET_TYPE}__test.pt") 
+checkpoint_train_dataset_path = os.path.join(BACKUP_DIR, f"FID_real_ckeckpoint__{DATASET_TYPE}__train.pt")  
+########################   
 
 # Show input data
 print('Input script data', '\n', flush=True)
@@ -242,11 +268,6 @@ print("model_name: ", model_name, '\n\n' )
 model = init_model(MODEL_TYPE, GOOD_MODEL_TYPE,  models_class_list, models_params, device)
 
 print(f"{MODEL_TYPE} was initialized")
-
- 
-    
-
-
 
 
 ## model weights upload
@@ -390,17 +411,26 @@ score_str = f"MSE: {mse_test:.4f} ({mse_train:.4f});   " + f"PSNR: {psnr_test:.2
 update_out_file(score_str, out_file_path, print_=True)
 #########################
 
+    
    
 ### FID reconstruction train and test
 print()
 # test
-r_fid_value = calculate_FID(X_full_test, decoded_2d2, TEST_BATCH_SIZE_SMALL, device, fid_class=None, transform=prepare_to_FID)
+
+checkpoint_path = checkpoint_test_dataset_path
+r_fid_value = calculate_FID(X_full_test, decoded_2d2, TEST_BATCH_SIZE_SMALL, device, fid_class=None, transform=prepare_to_FID,
+                            checkpoint_real_path=checkpoint_path)
 print(f"Rec FID test: {r_fid_value :.2f}")
 
 #train
-r_fid_train = ManualFID(device=device)
+checkpoint_path = checkpoint_train_dataset_path
+if (checkpoint_path is not None) and (checkpoint_path != ''):
+    r_fid_train = None
+else:
+    r_fid_train = ManualFID(device=device)
+    
 r_fid_value_train = calculate_FID(X_full_train, decoded_2d1, TEST_BATCH_SIZE_SMALL, device, fid_class=r_fid_train,
-                                  transform=prepare_to_FID)
+                                  transform=prepare_to_FID, checkpoint_real_path=checkpoint_path)
 print(f"Rec FID train: {r_fid_value_train :.2f}")
 
 score_str = f"Rec FID: {r_fid_value:.2f} ({r_fid_value_train:.2f})"
@@ -467,20 +497,33 @@ print("\n\n")
 print("Generation FID  calculations:")
 torch.cuda.empty_cache()
 
-try:
-    m_fid = r_fid_train
-    print("m_fid <--- r_fid_train ")
-    m_fid.to(device_fid)
-    imgs_real = None
-except:
-    print("Init m_fid")
+checkpoint_path = checkpoint_train_dataset_path
+
+# can be removed becoause we can use checkpoint!
+if (checkpoint_path is not None) and (checkpoint_path != ''):
+    print("Init m_fid because of checkpoint")
     m_fid = ManualFID(device=device_fid)
     imgs_real = dataset_list[0]
+else:
+    try:
+        m_fid = r_fid_train
+        print("m_fid <--- r_fid_train ")
+        m_fid.to(device_fid)
+        imgs_real = None
+    except:
+        print("Init m_fid")
+        m_fid = ManualFID(device=device_fid)
+        imgs_real = dataset_list[0]
+    
+
+
      
 # GM1
 imgs_fake = dataset_list[1]
-m_fid_value = calculate_FID(imgs_real, imgs_fake, TEST_BATCH_SIZE_SMALL, device_fid, fid_class=m_fid, transform=prepare_to_FID)
+m_fid_value = calculate_FID(imgs_real, imgs_fake, TEST_BATCH_SIZE_SMALL, device_fid, fid_class=m_fid, transform=prepare_to_FID,
+                            checkpoint_real_path=checkpoint_path)
 print("fake:", m_fid_value, '\n')
+
 
 #GM{N_GM_COMPONENTS}
 imgs_fake = dataset_list[2]

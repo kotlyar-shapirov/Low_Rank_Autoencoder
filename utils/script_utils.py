@@ -155,8 +155,7 @@ def upload_checkpoint_in(load_path, model=None, optimizer=None,  device=None):
     return checkpoint
 
 
-def save_checkpoint_from(save_path, model=None, optimizer=None, **kwargs):
-    
+def save_checkpoint_from(save_path, model=None, optimizer=None, _verbose=0, **kwargs):
     checkpoint = {}
     if model is not None:
         checkpoint['model_state_dict'] = model.state_dict()     
@@ -164,17 +163,27 @@ def save_checkpoint_from(save_path, model=None, optimizer=None, **kwargs):
         checkpoint['optimizer_state_dict'] = optimizer.state_dict()
         
     checkpoint = checkpoint | kwargs
-    torch.save(checkpoint, save_path)
+    
+    if (save_path is not None) and (save_path != ''):
+        torch.save(checkpoint, save_path)
+    else:
+        if _verbose > 0:
+            print('checkpoint was not saved without save_path')
+        if _verbose > 1:
+            print(checkpoint)
+        
+        
     return checkpoint
     
     
     
     
-def update_out_file(update_str, file_path, rewrite=False, end='\n', print_=True):    
-    flag = 'a' if not rewrite else 'w'
-    with open(file_path, flag) as f:
-        f.write(update_str + end)
-        
+def update_out_file(update_str, file_path, rewrite=False, end='\n', print_=True):
+    if file_path is not None:
+        flag = 'a' if not rewrite else 'w'
+        with open(file_path, flag) as f:
+            f.write(update_str + end)
+            
     if print_:
         print('\n', update_str, '\n', sep='')
         

@@ -1,41 +1,287 @@
 
+# # VAE CELEBA
+# {
+#     {
+#     for alpha in  0.001 0.01 0.0001 
+#         do
+#             for n_lat in 32 64 128 512 1024
+#                 do 
+#                 nohup python3 run_train.py  -m VAE    -D CELEBA    -d cuda:0   -A $alpha  -b 256  -n $n_lat  
+#                 done
+#         done
+#     } > eval_NIPS/n_CELEBA_VAE_N_A.out 2>&1
+
+#     {
+#     for alpha in  0.001 0.01 0.0001 
+#         do
+#             for n_lat in 32 64 128 512 1024
+#                 do 
+#                 nohup python3 run_eval.py -l test_NIPS/test_NIPS_N_A__CELEBA__VAE__${n_lat}__${alpha}__100.pth \
+#                         -o eval_NIPS    -d cuda:0 -a NIPS  
+#                         --out_file test_NIPS_0.5_B__CELEBA__VAE__N__${alpha}__150__metrics.txt \
+#                         > eval_NIPS/n_CELEBA_VAE_N_${alpha}.out 2>&1
+#                 done
+#         done
+#     } 
+
+# } &
+
+# # LRAE CELEBA
+# {
+#     {
+#     for alpha in  0.1 0.01  1.0
+#         do
+#             for n_lat in 32 64 128 512 1024
+#                 do 
+#                 nohup python3 run_train.py  -m LRAE    -D CELEBA    -d cuda:1   -A $alpha  -b 256  -n $n_lat 
+#                 done
+#         done
+#     } > eval_NIPS/n_CELEBA_LRAE_N_A.out 2>&1
+
+#     {
+#     for alpha in  0.001 0.01 0.0001 
+#         do
+#             for n_lat in 32 64 128 512 1024
+#                 do 
+#                 nohup python3 run_eval.py -l test_NIPS/test_NIPS_N_A__CELEBA__LRAE__${n_lat}__${alpha}__150.pth \
+#                         -o eval_NIPS    -d cuda:1 -a NIPS  \
+#                         --out_file test_NIPS_0.5_B__CELEBA__LRAE__N__${alpha}__150__metrics.txt \
+#                         > eval_NIPS/n_CELEBA_LRAE_N_${alpha}.out 2>&1
+#                 done
+#         done
+#     } 
+
+# } &
+
+
+
+
+
+# VAE FMNIST
+{
+    {
+    for n_lat in 128 64 256 32 16 512 
+        do
+            for alpha in  0.01 0.005 0.0005 0.0001 0.001 
+                do 
+                    nohup python3 run_train.py  -m VAE    -D FMNIST    -d cuda:2   -A $alpha  -b 256  -n $n_lat  
+                done
+        done
+    } > test_NIPS/n_FMNIST_VAE_N_A.out 2>&1
+
+    {
+    for n_lat in 128 64 256 32 16 512 
+        do
+            for alpha in  0.01 0.005 0.0005 0.0001 0.001 
+                do 
+                nohup python3 run_eval.py -l test_NIPS/test_NIPS_N_A__FMNIST__VAE__${n_lat}__${alpha}__100.pth \
+                        -o eval_NIPS    -d cuda:2 -a NIPS  
+                        --out_file test_NIPS__FMNIST__VAE__N__A__100__metrics.txt \
+                        
+                done
+        done
+    }  > eval_NIPS/n_FMNIST_VAE_N_A.out 2>&1
+} &
+
+
+# LRAE FMNIST
+{
+    {
+    for n_lat in 128 64 256 32 16 512 
+        do
+            for alpha in  0.01 0.005 0.0005 0.0001 0.001 
+                do 
+                    nohup python3 run_train.py  -m LRAE    -D FMNIST    -d cuda:3   -A $alpha  -b 256  -n $n_lat  
+                done
+        done
+    } > test_NIPS/n_FMNIST_LRAE_N_A.out 2>&1
+
+    {
+    for n_lat in 128 64 256 32 16 512 
+        do
+            for alpha in  1.0 0.5 0.05 0.01 0.1 
+                do 
+                nohup python3 run_eval.py -l test_NIPS/test_NIPS_N_A__FMNIST__LRAE__${n_lat}__${alpha}__100.pth \
+                        -o eval_NIPS    -d cuda:3 -a NIPS  
+                        --out_file test_NIPS__FMNIST__LRAE__N__A__100__metrics.txt \
+                        
+                done
+        done
+    }  > eval_NIPS/n_FMNIST_LRAE_N_A.out 2>&1
+} &
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # nohup python3 run_train.py -m IRMAE -a NIPS -D CELEBA -d cuda:1 -A 0.001 -b 32 > test_NIPS/out_CELEBA_IRMAE.out 2>&1  &
 # 17878
 
 
+
+
+# nohup python3 run_train.py -m VAE -a NIPS -D CELEBA -d cuda:1 -A 0.001 -b 32 > test_NIPS/out_CELEBA_VAE1.out 2>&1  &
+
+
 # test_dir_name="test_NIPS"
+# for N in  8 16 32 64 128 2 4 256 512 1024
 
 
-{
-for N in  8 16 32 64 128 2 4
-    do
-        nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:0   -A 0.1  -b 256  -n $N 
-    done
-} > test_NIPS/n_MNIST_LRAE_N.out 2>&1  &
+
+# {
+# for n_bins in  10 20 30 40 50 
+#     do
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:0   -A 0.1  -b 256  -n 128  --n_bins $n_bins
+#     done
+
+# for n_bins in  10 20 30 40 50 
+#     do
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:0   -A 0.1  -b 256  -n 16 --n_bins $n_bins
+#     done
+
+# for n_bins in  10 20 30 40 50 
+#     do
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_0.5_${n_bins}__MNIST__LRAE__128__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:0 -a NIPS   --n_bins $n_bins\
+#                         --out_file test_NIPS_0.5_B__MNIST__LRAE__128__0.1__100__metrics.txt 
+#     done
+
+# for n_bins in  10 20 30 40 50 
+#     do
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_0.5_${n_bins}__MNIST__LRAE__16__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:0 -a NIPS   --n_bins $n_bins\
+#                         --out_file test_NIPS_0.5_B__MNIST__LRAE__16__0.1__100__metrics.txt 
+#     done
 
 
-{
-for N in 8 16 32 64 128 2 4
-    do
-        nohup python3 run_train.py  -m AE    -D MNIST    -d cuda:4   -A 0  -b 256  -n $N 
-    done
-} > test_NIPS/n_MNIST_AE_N.out 2>&1  &
+# } > eval_NIPS/lrae_MNIST_LRAE_g0.5_B_n128_16.out 2>&1  &
 
 
-{
-for N in 8 16 32 64 128 2 4
-    do
-        nohup python3 run_train.py  -m VAE    -D MNIST    -d cuda:3   -A 0.001  -b 256  -n $N 
-    done
-} > test_NIPS/n_MNIST_VAE_N.out 2>&1  &
+# {
+# for n_bins in  10 20 30 40 50 
+#     do
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:1   -A 0.1  -b 256  -n 8  --n_bins $n_bins
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:1   -A 0.1  -b 256  -n 32 --n_bins $n_bins
+#     done
 
 
-{
-for N in 8 16 32 64 128 2 4
-    do
-        nohup python3 run_train.py  -m IRMAE    -D MNIST    -d cuda:2   -A 0  -b 256  -n $N 
-    done
-} > test_NIPS/n_MNIST_IRMAE_N.out 2>&1  &
+# for n_bins in  10 20 30 40 50 
+#     do
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_0.5_${n_bins}__MNIST__LRAE__8__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:1 -a NIPS   --n_bins $n_bins\
+#                         --out_file test_NIPS_0.5_B__MNIST__LRAE__8__0.1__100__metrics.txt
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_0.5_${n_bins}__MNIST__LRAE__32__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:1 -a NIPS   --n_bins $n_bins\
+#                         --out_file test_NIPS_0.5_B__MNIST__LRAE__32__0.1__100__metrics.txt
+#     done
+# } > eval_NIPS/lrae_MNIST_LRAE_g0.5_B_n8_32.out 2>&1  &
+
+
+
+# {
+# for gumbel_temp in  0.5 0.1 0.05 0.01 1.5 1  
+#     do
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:2   -A 0.1  -b 256  -n 128  --n_bins 20 --gumbel_temp $gumbel_temp
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:2   -A 0.1  -b 256  -n 16 --n_bins 20 --gumbel_temp $gumbel_temp
+#     done
+
+
+# for gumbel_temp in  0.5 0.1 0.05 0.01 1.5 1.0 
+#     do
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_${gumbel_temp}_20__MNIST__LRAE__128__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:3 -a NIPS   --gumbel_temp $gumbel_temp \
+#                         --out_file test_NIPS_G_20__MNIST__LRAE__128__0.1__100__metrics.txt
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_${gumbel_temp}_20__MNIST__LRAE__16__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:3 -a NIPS   --gumbel_temp $gumbel_temp \
+#                         --out_file test_NIPS_G_20__MNIST__LRAE__16__0.1__100__metrics.txt
+#     done
+# } > eval_NIPS/lrae_MNIST_LRAE_G_b20_n128_16.out 2>&1  &
+
+# for gumbel_temp in 1.0 
+#     do
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_${gumbel_temp}_20__MNIST__LRAE__128__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:3 -a NIPS   --gumbel_temp $gumbel_temp \
+#                         --out_file test_NIPS_G_20__MNIST__LRAE__128__0.1__100__metrics.txt
+#         nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_${gumbel_temp}_20__MNIST__LRAE__16__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:3 -a NIPS   --gumbel_temp $gumbel_temp \
+#                         --out_file test_NIPS_G_20__MNIST__LRAE__16__0.1__100__metrics.txt
+#     done
+# } > eval_NIPS/lrae_MNIST_LRAE_1.0_b20_n128_16.out 2>&1  &
+
+
+# nohup python3 run_eval.py -l test_NIPS/data_lrae/test_NIPS_${gumbel_temp}_20__MNIST__LRAE__16__0.1__100.pth \
+#                         -o eval_NIPS/data_lrae/ -d cuda:1 -a NIPS   --gumbel_temp $gumbel_temp \
+#                         --out_file test_NIPS_G_20__MNIST__LRAE__16__0.1__100__metrics.txt \
+#                         > eval_NIPS/lrae_MNIST_LRAE_1.0_b20_n16.out 2>&1  &
+
+
+
+# # {
+
+# # } > test_NIPS/lrae_MNIST_LRAE_nbins_N16.out 2>&1  &
+
+
+# {
+# for n_bins in  5 10 15 20 25 30 35 40 45 50 
+#     do
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:0   -A 0.1  -b 256  -n 8 --n_bins $n_bins
+#     done
+# } > test_NIPS/lrae_MNIST_LRAE_nbins_N8.out 2>&1  &
+
+# {
+# for n_bins in  5 10 15 20 25 30 35 40 45 50 
+#     do
+#         nohup python3 run_train.py  -m LRAE    -D MNIST    -d cuda:0   -A 0.1  -b 256  -n 32 --n_bins $n_bins
+#     done
+# } > test_NIPS/lrae_MNIST_LRAE_nbins_N32.out 2>&1  &
+
+
+
+
+
+
+
+
+# {
+# for N in  128 2 4 256 512 1024
+#     do
+#         nohup python3 run_train.py  -m LRAE    -D FMNIST    -d cuda:3   -A 0.1  -b 256  -n $N 
+#     done
+# } > test_NIPS/n_FMNIST_LRAE_N1.out 2>&1  &
+
+
+# {
+# for N in 8 16 32 64 128 2 4 256 512 1024
+#     do
+#         nohup python3 run_train.py  -m AE    -D FMNIST    -d cuda:0   -A 0  -b 256  -n $N 
+#     done
+# } > test_NIPS/n_FMNIST_AE_N.out 2>&1  &
+
+
+# {
+# for N in 8 16 32 64 128 2 4 256 512 1024
+#     do
+#         nohup python3 run_train.py  -m VAE    -D FMNIST    -d cuda:4   -A 0.001  -b 256  -n $N 
+#     done
+# } > test_NIPS/n_FMNIST_VAE_N.out 2>&1  &
+
+
+# {
+# for N in 8 16 32 64 128 2 4 256 512 1024
+#     do
+#         nohup python3 run_train.py  -m IRMAE    -D FMNIST    -d cuda:0   -A 0  -b 256  -n $N 
+#     done
+# } > test_NIPS/n_FMNIST_IRMAE_N.out 2>&1  &
 
 
 # {
