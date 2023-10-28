@@ -4,6 +4,7 @@ import torch
 from torchvision import transforms
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
 from tqdm import tqdm
@@ -119,7 +120,7 @@ def check_reconstruction(model, test_tensor_or_ds, device, fakeseed=0, C_H_W=Non
         if factors_probability is not None:
             if len(factors_probability.shape) > 2: 
                 for j in range(factors_probability.shape[1]):
-                    axs[2,i].plot(factors_probability[0,j,::].cpu().detach().numpy())
+                    axs[2,i].plot(torch.nn.functional.softmax(factors_probability[0,j,::], dim=-1).cpu().detach().numpy())
                     axs[2,i].set_ylim(-0.1,1.1)
             
         axs[0,i].set_xticks([])
@@ -302,6 +303,12 @@ class ManualFID():
         # self.pool_tensor_real = self.pool_tensor_real.to(self.device_storage)
         
         
+    def load_real(self, checkpoint_real_path):
+        self.pool_tensor_real = torch.load(checkpoint_real_path,  map_location=torch.device(self.device_storage))
+        
+    def save_real(self, checkpoint_real_path):
+        torch.save(self.pool_tensor_real.to(self.device_storage), checkpoint_real_path)
+        
 
         
         
@@ -452,7 +459,8 @@ def get_MSE_PSNR_score(decoded_2d, X_full):
     return mse.item(), psnr.item()         
      
    
-def calculate_FID(X_full_real, X_full_fake, batch_size, device, fid_class=None, transform=prepare_to_FID):
+def calculate_FID(X_full_real, X_full_fake, batch_size, device, fid_class=None, transform=prepare_to_FID,
+                  checkpoint_real_path=None, update_real_chekpoint=False):
     if fid_class is None:
         m_fid = ManualFID(device=device)
     else:
@@ -464,7 +472,23 @@ def calculate_FID(X_full_real, X_full_fake, batch_size, device, fid_class=None, 
     if not (X_full_real  is None):
         m_fid.clear_part(is_real=True)
         torch.cuda.empty_cache()
-        m_fid.update_full(X_full_real, True, batch_size=batch_size, transform=transform)
+        if (checkpoint_real_path is None) or (checkpoint_real_path=='') or (not os.path.exists(checkpoint_real_path)) or update_real_chekpoint:
+            m_fid.update_full(X_full_real, True, batch_size=batch_size, transform=transform)
+
+
+        if update_real_chekpoint or (not os.path.exists(checkpoint_real_path)):
+            m_fid.save_real(checkpoint_real_path)
+            print(f"checkpoint_real was saved: {checkpoint_real_path}")
+        else:
+            m_fid.load_real(checkpoint_real_path)
+            print(f"checkpoint_real was upload: {checkpoint_real_path}")
+            
+        
+            
+            
+                
+                
+       
         
    
     if X_full_fake is not None:

@@ -20,7 +20,11 @@ __pycache__/
 *.out
 
 
+
 # some special files
+test_*.txt
+test_*.jpg
+
 Low_rank_autoencoder_Sergei_tests__v1.ipynb
 _run_py_script.sh
 run_eval__.py

@@ -15,7 +15,7 @@ from torch.utils.data import Subset, Dataset, DataLoader
 import argparse
 
 
-from utils.script_utils import select_dataset, init_model, setup_dataset_training, save_checkpoint_from
+from utils.script_utils import select_dataset, init_model, setup_dataset_training, save_checkpoint_from, upload_checkpoint_in
 from utils.loss import wasser_loss, entropy_limit_loss, kl_loss_from_ready
 from main_utils import get_models_class_list, get_base_model_parameters
 
@@ -52,8 +52,13 @@ parser.add_argument('-n', '--n_latent', type=str, default='-1',
 parser.add_argument('--n_bins', type=str, default='20',  
                     help=f'number of bins for LRAE')
 
+parser.add_argument('--gumbel_temp', type=str, default='0.5',  
+                    help=f'Temperature of gumbel softmax')
+
 parser.add_argument('-d', '--device', type=str, default='cuda:1', 
                     help=f'torch device name. E.g.: cpu, cuda:0, cuda:1')
+parser.add_argument('-l', '--load_checkpoint', type=str, default=None,  
+                    help=f'Path to the checkpoint to continue the training')
 args = parser.parse_args()
 
 
@@ -70,7 +75,11 @@ DATASET_TYPE = args.dataset
 ALPHA = float(args.alpha)
 BATCH_SIZE = int(args.batch_size)
 
-EPOCHS = 101
+LOAD_CHEKPOINT = args.load_checkpoint if args.load_checkpoint != '' else None # None default and '' ---> None
+if LOAD_CHEKPOINT is not None:
+    print(f"Attantion! The model will continue training from the checkpoint:{LOAD_CHEKPOINT}")
+
+EPOCHS = 151
 # EPOCHS = 51
 LEARNING_RATE = 1e-4
 
@@ -78,20 +87,26 @@ N_LATENT = int(args.n_latent)
 
 # for LRAE
 N_BINS = int(args.n_bins)
+TEMP=  float(args.gumbel_temp)
+
+
+
+
 
 #### setup runs
 print("Setup runs")
 if DATASET_TYPE.upper() in ['MNIST', 'FMNIST', 'FASHIONMNIST']:
     # MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
-    MODEL_NAME_PREF = f'test_NIPS__'
-    SAVE_DIR = 'test_NIPS/data_n'
+    MODEL_NAME_PREF = f'test_NIPS_N_A__'
+    # MODEL_NAME_PREF = f'test_NIPS__'
+    SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE.upper() in ['CIFAR10']:
     MODEL_NAME_PREF = 'test_NIPS__'
     SAVE_DIR = 'test_NIPS'
     
 elif DATASET_TYPE.upper() in ['CELEBA']: 
-    MODEL_NAME_PREF = f'test1_NIPS__'
+    MODEL_NAME_PREF = f'test_NIPS_N_A__'
     SAVE_DIR = 'test_NIPS'
 else:
    print("Warning! the default run setups was not setuped!")
@@ -131,7 +146,8 @@ models_params['NONLINEARITY'] = nn.ReLU()
 
 # LRAE parameters
 # N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
-DROPOUT, TEMP, SAMPLING = 0.0, 0.5, 'gumbell'
+# DROPOUT, TEMP, SAMPLING = 0.0, 0.5, 'gumbell'
+DROPOUT, SAMPLING = 0.0, 'gumbell'
 
 models_params = models_params | {'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
 ##
@@ -314,6 +330,7 @@ loss_list_test = []
 loss_test_cum = 0
 i = 0
 loss = 0
+epoch_0 = 0
 
 #time
 epoch_time_list = []
@@ -334,15 +351,33 @@ show_loss_backup = SHOW_LOSS_BACKUP
 
 
 
+load_path = LOAD_CHEKPOINT
+# loading chekpoint 
+if load_path is not None:
+    print('The training will be continue!!!')
+    checkpoint = upload_checkpoint_in(load_path, model=model, optimizer=optimizer, device=device)
+    print("Loaded epoch:", checkpoint['epoch'])
+    print("Loaded final loss:", checkpoint['loss'])
+
+    loss_list_train = checkpoint['loss_list_train']
+    loss_list_test = checkpoint['loss_list_test']
+    epoch_time_list = checkpoint['epoch_time_list'] if 'epoch_time_list' in checkpoint.keys() else None
+    
+    epoch_0 = checkpoint['epoch'] + 1
+    del checkpoint
+
 
 
 # Training
 model.train()
+model.to(device)
 optimizer.zero_grad()
 torch.cuda.empty_cache()
+epoch_0 = epoch_0
+print(f"Training starts from the epoch={epoch_0}")
 
 for epoch in tqdm(range(EPOCHS)):
-    
+    epoch = epoch_0 + epoch
     # time
     epoch_t2 = timer()
     if epoch_t1 is not None:
@@ -428,7 +463,7 @@ for epoch in tqdm(range(EPOCHS)):
     # backup saving  
     if epoch%epoch_save_backup == 0:
         
-        save_checkpoint_from(PATH + f"__backup.pth", model, optimizer,  epoch=epoch, loss=loss, 
+        save_checkpoint_from(PATH + f"__backup.pth", model, optimizer,  epoch=epoch, loss=loss.item(), 
                     loss_list_train=loss_list_train, loss_list_test=loss_list_test,
                     epoch_time_list=epoch_time_list)
         
@@ -453,13 +488,9 @@ for epoch in tqdm(range(EPOCHS)):
 
 print("Finishing of the training...")
 
-save_checkpoint_from(PATH + f"__{epoch}__end.pth", model, optimizer,  epoch=epoch, loss=loss, 
+save_checkpoint_from(PATH + f"__{epoch}__end.pth", model, optimizer,  epoch=epoch, loss=loss.item(), 
                     loss_list_train=loss_list_train, loss_list_test=loss_list_test,
                     epoch_time_list=epoch_time_list)
-
-
-
-
 
 #######################
 
