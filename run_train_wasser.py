@@ -16,7 +16,7 @@ import argparse
 
 
 from utils.script_utils import select_dataset, init_model, setup_dataset_training, save_checkpoint_from
-from utils.loss import wasser_loss, entropy_loss
+from utils.loss import wasser_loss, entropy_loss, wasser_loss_diff
 from main_utils import get_models_class_list, get_base_model_parameters
 
 
@@ -69,7 +69,7 @@ assert DISTRIBUTION_LOSS in ['entropy', 'wasser'], f'Choose dist loss from: entr
 BATCH_SIZE = int(args.batch_size)
 
 EPOCHS = 201
-LEARNING_RATE = 8*1e-4
+LEARNING_RATE = 1e-4
 
 #### setup runs
 print("Setup runs")
@@ -343,7 +343,16 @@ for epoch in tqdm(range(EPOCHS)):
             loss -= alpha_kl*factors_probability.mean()  # KL loss
             
         if MODEL_TYPE == 'LRAE':
-            loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
+            # OLD MSE-LIKE LOSS
+            # loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
+
+            # NEW RECURSIVE WASSERSTEIN LOSS
+            x_down_rec = model.down(decoded_2d)
+            B, C, H, W = x_down_rec.shape
+            x_flat_rec = x_down_rec.view(B,C*H*W)
+            encoded_out_dim_rec, factors_probability_rec = model.low_rank.low_rank_pants(x_flat_rec)
+            loss = wasser_loss_diff(factors_probability, factors_probability_rec)
+
             if DISTRIBUTION_LOSS == 'entropy':
                 loss += alpha_entropy*entropy_loss(factors_probability)
             elif DISTRIBUTION_LOSS == 'wasser':
