@@ -102,7 +102,7 @@ models_params['NONLINEARITY'] = nn.ReLU()
 ###
 
 # LRAE parameters
-N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.1, 'gumbell'
 models_params = models_params | {'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
 ##
 

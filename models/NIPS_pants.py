@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from .sampling_functions import *
+import numpy as np
 
 
 # global device
@@ -35,7 +36,23 @@ class LowRankPants(nn.Module):
     def forward(self,x):
         B = x.shape[0]
         factors = self.layers(x)
-        factors_logits = factors.view(B, self.bottleneck_features, self.n_bins) # size = (B, out_features, n_bins)
+        # original without attention
+        factors_logits = factors.view(B, self.bottleneck_features, self.n_bins)
+
+        # attention over probs
+        # factors_logits_ = factors.reshape(B, self.bottleneck_features, self.n_bins) # size = (B, out_features, n_bins)
+        # denominator = torch.sum(torch.exp(factors_logits_), dim=-1, keepdim=True)
+        # factors_probs = nn.Softmax(dim=-1)(factors_logits_)
+        # factors_probs_flat = factors_probs.view(B, -1)
+        # att = nn.Softmax(dim=-1)(factors_probs_flat @ factors_probs_flat.T/(np.sqrt(self.bottleneck_features*self.n_bins)))
+        # factors_new = att @ factors_probs_flat
+        # factors_new_resh = factors_new.view(B, self.bottleneck_features, self.n_bins)
+        # factors_logits = torch.log(factors_new_resh + 1e-9) + torch.log(denominator + 1e-9)
+        
+        # attention over logits
+        # att = nn.Softmax(dim=-1)(factors @ factors.T/(np.sqrt(self.bottleneck_features*self.n_bins)))
+        # factors_new = att @ factors
+        # factors_logits = factors_new.view(B, self.bottleneck_features, self.n_bins)
 
         # choosing the sampling
         if self.sampling == 'vector':
@@ -47,6 +64,11 @@ class LowRankPants(nn.Module):
         elif self.sampling == 'gumbell':
             encoded = gumbell_torch_sampling(factors_logits, self.grid, self.temperature)
         
+        # attention over encodings
+        if self.training:
+            att = nn.Softmax(dim=-1)(encoded @ encoded.T/(np.sqrt(encoded.shape[-1]/4)))
+            encoded = att @ encoded
+
         return encoded, factors_logits
 
 
@@ -142,6 +164,11 @@ class PantsAE(nn.Module):
         
     def forward(self,x):
         encoded = self.out(x)
+        # attention over encodings
+        if self.training:
+            att = nn.Softmax(dim=-1)(encoded @ encoded.T/(np.sqrt(encoded.shape[-1])))
+            encoded = att @ encoded
+        
         return encoded, None
     
     

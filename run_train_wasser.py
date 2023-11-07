@@ -69,21 +69,21 @@ assert DISTRIBUTION_LOSS in ['entropy', 'wasser'], f'Choose dist loss from: entr
 BATCH_SIZE = int(args.batch_size)
 
 EPOCHS = 201
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 4e-4
 
 #### setup runs
 print("Setup runs")
 if DATASET_TYPE.upper() in ['MNIST']:
-    MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
-    SAVE_DIR = 'test_NIPS'
+    MODEL_NAME_PREF = f'test_ATT_train_{BATCH_SIZE}_{LEARNING_RATE}1__'
+    SAVE_DIR = 'test_ATT'
     
 elif DATASET_TYPE.upper() in ['CIFAR10']:
-    MODEL_NAME_PREF = 'test_NIPS__'
-    SAVE_DIR = 'test_NIPS'
+    MODEL_NAME_PREF = 'test_ATT_train_{BATCH_SIZE}_{LEARNING_RATE}__'
+    SAVE_DIR = 'test_ATT'
     
 elif DATASET_TYPE.upper() in ['CELEBA']: 
-    MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
-    SAVE_DIR = 'test_NIPS'
+    MODEL_NAME_PREF = 'test_ATT_train_{BATCH_SIZE}_{LEARNING_RATE}__'
+    SAVE_DIR = 'test_ATT'
 else:
    print("Warning! the default run setups was not setuped!")
    
@@ -115,7 +115,7 @@ models_params['NONLINEARITY'] = nn.ReLU()
 
 
 # LRAE parameters
-N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.5, 'gumbell'
+N_BINS, DROPOUT, TEMP, SAMPLING = 20, 0.0, 0.1, 'gumbell'
 models_params = models_params | {'N_BINS': N_BINS, 'DROPOUT':DROPOUT, 'SAMPLING':SAMPLING, 'TEMP': TEMP}
 ##
 
@@ -307,9 +307,10 @@ for epoch in tqdm(range(EPOCHS)):
     # Forward pass: Compute predicted y by passing x to the model
         
     # Training
-    model.train() # Model to train
+    # model.train() # Model to train
     epoch_t1 = timer()
     for x_batch, y_batch in dl:
+        model.train()
         
         x_batch, y_batch = x_batch.to(device), y_batch.to(device)
         
@@ -344,14 +345,14 @@ for epoch in tqdm(range(EPOCHS)):
             
         if MODEL_TYPE == 'LRAE':
             # OLD MSE-LIKE LOSS
-            # loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
+            loss = torch.nn.functional.binary_cross_entropy(decoded_2d, x_batch)
 
             # NEW RECURSIVE WASSERSTEIN LOSS
-            x_down_rec = model.down(decoded_2d)
-            B, C, H, W = x_down_rec.shape
-            x_flat_rec = x_down_rec.view(B,C*H*W)
-            encoded_out_dim_rec, factors_probability_rec = model.low_rank.low_rank_pants(x_flat_rec)
-            loss = wasser_loss_diff(factors_probability, factors_probability_rec)
+            # x_down_rec = model.down(decoded_2d)
+            # B, C, H, W = x_down_rec.shape
+            # x_flat_rec = x_down_rec.view(B,C*H*W)
+            # encoded_out_dim_rec, factors_probability_rec = model.low_rank.low_rank_pants(x_flat_rec)
+            # loss = wasser_loss_diff(factors_probability, factors_probability_rec)
 
             if DISTRIBUTION_LOSS == 'entropy':
                 loss += alpha_entropy*entropy_loss(factors_probability)
@@ -434,9 +435,20 @@ for epoch in tqdm(range(EPOCHS)):
       
     # loss printing        
     if (epoch % show_loss_backup == (show_loss_backup-1)) or (epoch == EPOCHS -1):
-        fig = plt.figure(figsize=(6,3))
-        plt.plot(loss_list_train, alpha=0.5, label='train')
-        plt.plot(loss_list_test, alpha=0.5, label='test')
+        # fig = plt.figure(figsize=(6,3))
+        # plt.plot(loss_list_train, alpha=0.5, label='train')
+        # plt.plot(loss_list_test, alpha=0.5, label='test')
+        # plt.legend()
+        # plt.savefig( PATH  + "_loss.jpg")
+        # plt.close()
+
+        fig, ax1 = plt.subplots(figsize=(6,3))
+        ax1.plot(loss_list_train, alpha=0.5, label='train', color='r')
+        ax1.tick_params(axis='y', labelcolor='r')
+        ax2 = ax1.twinx()
+        ax2.plot(loss_list_test, alpha=0.5, label='test', color='g')
+        ax2.tick_params(axis='y', labelcolor='g')
+        fig.tight_layout()
         plt.legend()
         plt.savefig( PATH  + "_loss.jpg")
         plt.close()
