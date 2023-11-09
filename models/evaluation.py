@@ -96,6 +96,7 @@ def check_reconstruction(model, test_tensor_or_ds, device, fakeseed=0, C_H_W=Non
             model.eval()
             
             x_batch = X_test[indx][0] if  isinstance(X_test[indx], (tuple, list)) else X_test[indx] 
+
             x_batch = x_batch.unsqueeze(0).to(device)
             
             # plotting original images
@@ -104,7 +105,10 @@ def check_reconstruction(model, test_tensor_or_ds, device, fakeseed=0, C_H_W=Non
             
 
             # forward pass with intermediate layers
+            # decoded_2d, encoded_out_dim, factors_probability = inf_by_layers(model, x_batch, C_H_W)
+            x_batch_new = x_batch.repeat([256,1,1,1])
             decoded_2d, encoded_out_dim, factors_probability = inf_by_layers(model, x_batch, C_H_W)
+            decoded_2d, encoded_out_dim, factors_probability = decoded_2d[0:1], encoded_out_dim[0:1], factors_probability
             
         axs[1,i].imshow(decoded_2d[0].cpu().detach().permute(1, 2, 0).numpy()) # output
         mse = torch.nn.MSELoss()(decoded_2d[0].cpu().detach(), x_batch[0].cpu().detach())

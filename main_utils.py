@@ -56,7 +56,7 @@ def get_base_model_NIPS_parameters(DATASET_TYPE):
         C_H_W = [128, 8, 8]
         OUT_FEATURES = C_H_W[0]*C_H_W[1]*C_H_W[2]
         DS_IN_CHANNELS = 1
-        MIDDLE_MATRIXES = 8       
+        MIDDLE_MATRIXES = 4       
         
     elif DATASET_TYPE.upper() in ['CIFAR10']:
         IN_FEATURES = 1024*2*2

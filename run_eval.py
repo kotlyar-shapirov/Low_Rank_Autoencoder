@@ -134,11 +134,11 @@ TEST_BATCH_SIZE_SMALL = 128
 
 if DEVICE in ['cuda:2', 'cuda:3', 'cuda:4']:
     TEST_BATCH_SIZE_BIG = 256
-    TEST_BATCH_SIZE_SMALL = 128
+    TEST_BATCH_SIZE_SMALL = 128 #128
 
 if DEVICE in ['cuda:0', 'cuda:1']:
-    TEST_BATCH_SIZE_BIG = 512
-    TEST_BATCH_SIZE_SMALL = 512
+    TEST_BATCH_SIZE_BIG = 256#512
+    TEST_BATCH_SIZE_SMALL = 256 #512
     
 if TEST_BATCH_SIZE_BIG == 1024 and DATASET_TYPE.upper() in ['CELEBA', 'CIFAR10', 'CIFAR']:
     TEST_BATCH_SIZE_BIG = 512
@@ -246,6 +246,7 @@ checkpoint = upload_checkpoint_in(load_path, model=model, device=device)
 
 print("Loaded epoch:", checkpoint['epoch'])
 print("Loaded final loss:", checkpoint['loss'])
+print(model)
 
 
 loss_list_train = checkpoint['loss_list_train']

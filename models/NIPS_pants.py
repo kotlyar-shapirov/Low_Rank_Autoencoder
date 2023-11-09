@@ -11,7 +11,7 @@ import numpy as np
 # LOW RANK PANTS
 class LowRankPants(nn.Module):
     def __init__(self, in_features, bottleneck_features, n_bins, grid,
-                 dropout=0.2, sampling='gumbell', temperature=0.5):
+                 dropout=0.2, sampling='gumbell', temperature=0.5, attention=False):
         super().__init__()
         self.in_features = in_features
         self.bottleneck_features = bottleneck_features
@@ -24,10 +24,23 @@ class LowRankPants(nn.Module):
         self.eps = 1e-9/(n_bins*bottleneck_features)
         # coordinates grid
         self.grid = grid
+        # attention
+        self.attention = attention
         
         assert sampling in {'vector', 'gumbell'}, 'Select: vector, gumbell'
         
         self.layers = nn.Linear(in_features, n_bins*bottleneck_features)
+
+        # additional autoencoder over bins
+        self.bins_autoencoder = nn.Sequential(
+                                              nn.Linear(n_bins, 10),
+                                              nn.ReLU(),
+                                              nn.Linear(10, 5),
+                                              nn.ReLU(),
+                                              nn.Linear(5, 10),
+                                              nn.ReLU(),
+                                              nn.Linear(10, n_bins),
+                                              )
 
         # dropout for randromized vector sampling
         self.dropout = nn.Dropout(dropout)
@@ -36,23 +49,10 @@ class LowRankPants(nn.Module):
     def forward(self,x):
         B = x.shape[0]
         factors = self.layers(x)
-        # original without attention
-        factors_logits = factors.view(B, self.bottleneck_features, self.n_bins)
+        factors_logits = factors.view(B, self.bottleneck_features, self.n_bins) # size = (B, out_features, n_bins)
 
-        # attention over probs
-        # factors_logits_ = factors.reshape(B, self.bottleneck_features, self.n_bins) # size = (B, out_features, n_bins)
-        # denominator = torch.sum(torch.exp(factors_logits_), dim=-1, keepdim=True)
-        # factors_probs = nn.Softmax(dim=-1)(factors_logits_)
-        # factors_probs_flat = factors_probs.view(B, -1)
-        # att = nn.Softmax(dim=-1)(factors_probs_flat @ factors_probs_flat.T/(np.sqrt(self.bottleneck_features*self.n_bins)))
-        # factors_new = att @ factors_probs_flat
-        # factors_new_resh = factors_new.view(B, self.bottleneck_features, self.n_bins)
-        # factors_logits = torch.log(factors_new_resh + 1e-9) + torch.log(denominator + 1e-9)
-        
-        # attention over logits
-        # att = nn.Softmax(dim=-1)(factors @ factors.T/(np.sqrt(self.bottleneck_features*self.n_bins)))
-        # factors_new = att @ factors
-        # factors_logits = factors_new.view(B, self.bottleneck_features, self.n_bins)
+        # additional autoencoder over bins
+        factors_logits = self.bins_autoencoder(factors_logits)
 
         # choosing the sampling
         if self.sampling == 'vector':
@@ -64,11 +64,6 @@ class LowRankPants(nn.Module):
         elif self.sampling == 'gumbell':
             encoded = gumbell_torch_sampling(factors_logits, self.grid, self.temperature)
         
-        # attention over encodings
-        if self.training:
-            att = nn.Softmax(dim=-1)(encoded @ encoded.T/(np.sqrt(encoded.shape[-1]/4)))
-            encoded = att @ encoded
-
         return encoded, factors_logits
 
 
@@ -76,8 +71,10 @@ class LowRankPants(nn.Module):
 class LowRankAutoencoder(nn.Module):
     def __init__(self, in_features, bottleneck_features, out_features, n_bins, grid,
                  dropout, nonlinearity,
-                 sampling, temperature):
+                 sampling, temperature, attention=False):
         super().__init__() 
+
+        self.attention = attention
         
         # low rank probabilites
         self.low_rank_pants = LowRankPants(in_features, bottleneck_features, n_bins, grid,
@@ -110,6 +107,10 @@ class PantsVAE(nn.Module):
         self.sigma = nn.Sequential(nn.Linear(in_features, bottleneck_features),
                                      nonlinearity,)
         
+        self.multihead = nn.MultiheadAttention(embed_dim=bottleneck_features,
+                                        num_heads=1,
+                                        batch_first=True)
+        
         
     def forward(self,x):
         device = x.device
@@ -119,11 +120,15 @@ class PantsVAE(nn.Module):
         sigma = torch.exp(0.5*logvar)
         rand = torch.randn(mu.shape).to(device)
         encoded = rand*sigma + mu
+
+        encoded, _ = self.multihead(encoded.unsqueeze(0),
+                            encoded.unsqueeze(0),
+                            encoded.unsqueeze(0))
         
         # KL = sigma**2 + mu**2 - torch.log(sigma) - 1/2
         KL = 1 + logvar - mu.pow(2) - logvar.exp()
         
-        return encoded, KL
+        return encoded[0], KL
     
     
 # VAE PANTS  with reconstructing back to original dimension
@@ -162,13 +167,12 @@ class PantsAE(nn.Module):
         self.out = nn.Sequential(nn.Linear(in_features, bottleneck_features),
                                      nonlinearity,)
         
+        self.multihead = nn.MultiheadAttention(embed_dim=bottleneck_features,
+                                num_heads=1,
+                                batch_first=True)
+        
     def forward(self,x):
         encoded = self.out(x)
-        # attention over encodings
-        if self.training:
-            att = nn.Softmax(dim=-1)(encoded @ encoded.T/(np.sqrt(encoded.shape[-1])))
-            encoded = att @ encoded
-        
         return encoded, None
     
     
@@ -213,10 +217,17 @@ class PantsIRMAE(nn.Module):
             for i in range(middle_matrixes):
                 self.middle.append(nn.Linear(bottleneck_features, bottleneck_features))
     
-        
+        self.multihead = nn.MultiheadAttention(embed_dim=bottleneck_features,
+                                                num_heads=1,
+                                                batch_first=True)
     def forward(self,x):
         encoded = self.out(x)
-        encoded = self.middle(encoded)
+        encoded = nn.Sigmoid()(self.middle(encoded))
+
+        encoded1, _ = self.multihead(encoded.unsqueeze(0),
+                                    encoded.unsqueeze(0),
+                                    encoded.unsqueeze(0))
+        encoded = encoded1[0] + encoded
         return encoded, None
     
     

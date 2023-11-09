@@ -12,6 +12,7 @@ class ConvLRAE(nn.Module):
     def __init__(self, in_features, bottleneck_features, out_features, n_bins, grid,
                  dropout, nonlinearity,
                  sampling='gumbell', temperature=0.5, in_channels=3, start_dropout=0,
+                 attention=False
                 ):
         super().__init__()
         
@@ -36,7 +37,7 @@ class ConvLRAE(nn.Module):
         
         self.low_rank = LowRankAutoencoder(in_features, bottleneck_features, out_features, n_bins, grid,
                                            dropout, nonlinearity,
-                                           sampling, temperature)
+                                           sampling, temperature, attention)
         
         self.up = nn.Sequential(
                                 UpsampleBlock(in_features=1024, out_features=512, nonlinearity=nonlinearity),
