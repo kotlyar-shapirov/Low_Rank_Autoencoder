@@ -44,6 +44,10 @@ class LowRankPants(nn.Module):
 
         # dropout for randromized vector sampling
         self.dropout = nn.Dropout(dropout)
+
+        self.multihead = nn.MultiheadAttention(embed_dim=bottleneck_features,
+                                        num_heads=1,
+                                        batch_first=True)
         
     # even faster forward - inner products with the range vec
     def forward(self,x):
@@ -63,6 +67,12 @@ class LowRankPants(nn.Module):
             
         elif self.sampling == 'gumbell':
             encoded = gumbell_torch_sampling(factors_logits, self.grid, self.temperature)
+
+        encoded1 = self.multihead(encoded.unsqueeze(0),
+                                  encoded.unsqueeze(0),
+                                  encoded.unsqueeze(0))
+        
+        encoded = encoded + encoded1[0]
         
         return encoded, factors_logits
 
@@ -121,14 +131,16 @@ class PantsVAE(nn.Module):
         rand = torch.randn(mu.shape).to(device)
         encoded = rand*sigma + mu
 
-        encoded, _ = self.multihead(encoded.unsqueeze(0),
-                            encoded.unsqueeze(0),
-                            encoded.unsqueeze(0))
+        encoded1 = self.multihead(encoded.unsqueeze(0),
+                                  encoded.unsqueeze(0),
+                                  encoded.unsqueeze(0))
+        
+        encoded = encoded + encoded1[0]
         
         # KL = sigma**2 + mu**2 - torch.log(sigma) - 1/2
         KL = 1 + logvar - mu.pow(2) - logvar.exp()
         
-        return encoded[0], KL
+        return encoded, KL
     
     
 # VAE PANTS  with reconstructing back to original dimension
@@ -168,11 +180,16 @@ class PantsAE(nn.Module):
                                      nonlinearity,)
         
         self.multihead = nn.MultiheadAttention(embed_dim=bottleneck_features,
-                                num_heads=1,
-                                batch_first=True)
+                                                num_heads=1,
+                                                batch_first=True)
         
     def forward(self,x):
         encoded = self.out(x)
+        encoded1 = self.multihead(encoded.unsqueeze(0),
+                                    encoded.unsqueeze(0),
+                                    encoded.unsqueeze(0))
+        
+        encoded = encoded + encoded1[0]
         return encoded, None
     
     

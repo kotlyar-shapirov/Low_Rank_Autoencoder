@@ -74,8 +74,8 @@ if DATASET_TYPE.upper() in ['MNIST', 'FMNIST', 'FASHIONMNIST']:
     # MODEL_NAME_PREF = f'test_bl_NIPS_{BATCH_SIZE}_{LEARNING_RATE}__'
     # MODEL_NAME_PREF = f'test_NIPS__'
     # SAVE_DIR = 'test_NIPS'
-    MODEL_NAME_PREF = f'test_BINS_LOW__'
-    SAVE_DIR = 'test_BINS_LOW'
+    MODEL_NAME_PREF = f'test_MULTIHEAD_BATCH__'
+    SAVE_DIR = 'test_MULTIHEAD_BATCH'
     
 elif DATASET_TYPE.upper() in ['CIFAR10']:
     MODEL_NAME_PREF = f'test_MULTIHEAD_BATCH__'
